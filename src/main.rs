@@ -1,6 +1,7 @@
 mod fetcher;
 
 use iced::border::Radius;
+use iced::futures::SinkExt as _;
 use iced::widget::scrollable::Scrollbar;
 use iced::widget::text::Wrapping;
 use log::{LevelFilter, error, info};
@@ -12,8 +13,10 @@ use std::io::Read as _;
 use dirs::home_dir;
 use iced::widget::{button, center, column, row, space, text};
 use iced::widget::{container, scrollable};
-use iced::{window, Alignment, Border, Color, Element, Task, Theme};
+use iced::{Alignment, Border, Color, Element, Subscription, Task, Theme, window};
 use serde::{Deserialize, Serialize};
+
+use crate::fetcher::{FetchEvent, FetcherInput, fetch_crate_updates};
 
 pub fn main() -> iced::Result {
     pretty_env_logger::formatted_timed_builder()
@@ -22,6 +25,7 @@ pub fn main() -> iced::Result {
         .init();
 
     iced::application(MainWindow::new, MainWindow::update, MainWindow::view)
+        .subscription(MainWindow::subscription)
         .title(MainWindow::title)
         .centered()
         .run()
@@ -39,10 +43,12 @@ pub enum Page {
     Crates,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Message {
     Close,
     UpdatePressed(String),
+    FetchEvent(FetchEvent),
+    None,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -142,9 +148,33 @@ impl MainWindow {
             Message::Close => window::latest().and_then(window::close),
             Message::UpdatePressed(crate_name) => {
                 info!("'Update' pressed for crate: {}", crate_name);
-                // You can add update logic here in the future
                 Task::none()
             }
+            Message::FetchEvent(event) => {
+                match event {
+                    FetchEvent::Ready(mut sender) => {
+                        info!("Send crate list");
+
+                        return Task::perform(
+                            async move {
+                                let _ = sender
+                                    .send(FetcherInput::CrateList(vec![
+                                        "tokio".into(),
+                                        "serde".into(),
+                                        "reqwest".into(),
+                                    ]))
+                                    .await;
+                            },
+                            |_| Message::None,
+                        );
+                    }
+                    _ => {
+                        info!("Received fetch event: {event:?}");
+                    }
+                }
+                Task::none()
+            }
+            Message::None => Task::none(),
         }
     }
 
@@ -212,5 +242,9 @@ impl MainWindow {
         )
         .padding(10)
         .into()
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        Subscription::run(fetch_crate_updates).map(Message::FetchEvent)
     }
 }
