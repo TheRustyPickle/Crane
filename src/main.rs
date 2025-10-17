@@ -1,4 +1,5 @@
 mod components;
+mod icon;
 mod worker;
 
 use dirs::home_dir;
@@ -21,6 +22,7 @@ pub fn main() -> iced::Result {
 
     iced::application(MainWindow::new, MainWindow::update, MainWindow::view)
         .subscription(MainWindow::subscription)
+        .font(icon::FONT)
         .title(MainWindow::title)
         .centered()
         .run()
@@ -148,8 +150,6 @@ impl MainWindow {
             Message::FetchEvent(event) => {
                 match event {
                     FetchEvent::Ready(mut sender) => {
-                        info!("Send crate list");
-
                         return Task::perform(
                             async move {
                                 let _ = sender

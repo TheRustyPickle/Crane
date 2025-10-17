@@ -5,6 +5,7 @@ use iced::widget::text::Wrapping;
 use iced::widget::{button, center, column, container, row, scrollable, space, text};
 use iced::{Alignment, Border, Color, Element, Theme};
 
+use crate::icon::{refresh};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
@@ -26,7 +27,7 @@ impl MainWindow {
 
                 let actions = column![
                     text(format!("v{}", crate_item.version)).size(15),
-                    button("Update")
+                    button(refresh())
                         .on_press(Message::UpdatePressed(crate_item.name.clone()))
                         .style(|theme: &Theme, status| {
                             let palette = theme.extended_palette();

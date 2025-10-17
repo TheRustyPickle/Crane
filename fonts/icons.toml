@@ -1,0 +1,4 @@
+module = "icon"
+
+[glyphs]
+refresh = "fontawesome-arrows-cw"
