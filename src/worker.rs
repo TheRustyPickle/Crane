@@ -19,7 +19,7 @@ pub fn fetch_crate_updates() -> impl Stream<Item = FetchEvent> {
                         for name in list {
                             let start = Instant::now();
 
-                            info!("Fetching crate: {}", name);
+                            info!("Fetching crate: {name}");
                             let resp = reqwest::get("https://google.com").await;
 
                             match resp {
@@ -36,7 +36,7 @@ pub fn fetch_crate_updates() -> impl Stream<Item = FetchEvent> {
                                 sleep(Duration::from_secs(1) - elapsed).await;
                             }
                         }
-                        break_loop = true
+                        break_loop = true;
                     }
                 }
             }
