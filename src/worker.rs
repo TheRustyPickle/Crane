@@ -1,7 +1,8 @@
+use crates_io_api::{AsyncClient, CrateResponse};
 use iced::futures::channel::mpsc::{self, Sender};
 use iced::futures::{SinkExt as _, Stream, StreamExt};
 use iced::stream;
-use log::info;
+use log::{error, info};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
@@ -16,15 +17,26 @@ pub fn fetch_crate_updates() -> impl Stream<Item = FetchEvent> {
             if let Some(event) = receiver.next().await {
                 match event {
                     FetcherInput::CrateList(list) => {
-                        for name in list {
+                        let app_version = env!("CARGO_PKG_VERSION");
+
+                        let Ok(client) = AsyncClient::new(
+                            &format!("Crane/{app_version} (rusty.pickle94@gmail.com)"),
+                            Duration::from_secs(1),
+                        ) else {
+                            error!("Failed to create client");
+                            break;
+                        };
+                        for (index, name) in list.into_iter().enumerate() {
                             let start = Instant::now();
 
                             info!("Fetching crate: {name}");
-                            let resp = reqwest::get("https://google.com").await;
+                            let resp = client.get_crate(&name).await;
 
                             match resp {
-                                Ok(_) => {
-                                    let _ = output.send(FetchEvent::Success).await;
+                                Ok(details) => {
+                                    let _ = output
+                                        .send(FetchEvent::Success((Box::new(details), index)))
+                                        .await;
                                 }
                                 Err(_) => {
                                     let _ = output.send(FetchEvent::Error).await;
@@ -52,7 +64,7 @@ pub fn fetch_crate_updates() -> impl Stream<Item = FetchEvent> {
 #[derive(Debug, Clone)]
 pub enum FetchEvent {
     Ready(Sender<FetcherInput>),
-    Success,
+    Success((Box<CrateResponse>, usize)),
     Error,
     Done,
 }
