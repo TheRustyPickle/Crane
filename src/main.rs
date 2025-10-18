@@ -1,17 +1,21 @@
 mod components;
 mod icon;
+mod lerp;
 mod worker;
 
 use dirs::home_dir;
 use iced::futures::SinkExt as _;
-use iced::{Element, Subscription, Task, window};
+use iced::widget::column;
+use iced::{Element, Subscription, Task, time, window};
 use log::{LevelFilter, error, info};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::Read as _;
+use std::time::Duration;
 
+use crate::lerp::LerpState;
 use crate::worker::{FetchEvent, FetcherInput, fetch_crate_updates};
 
 pub fn main() -> iced::Result {
@@ -31,7 +35,10 @@ pub fn main() -> iced::Result {
 #[derive(Default)]
 pub struct MainWindow {
     showing: Page,
-    crate_list: Vec<Crates>,
+    crate_list: BTreeMap<String, LocalCrate>,
+    fetch_progress: usize,
+    hovering: Option<usize>,
+    lerp_state: LerpState,
 }
 
 #[derive(Clone, Default, Copy, PartialEq, Eq)]
@@ -45,6 +52,9 @@ pub enum Message {
     Close,
     UpdatePressed(String),
     FetchEvent(FetchEvent),
+    Hovering(usize),
+    HoveringExit(usize),
+    Tick,
     None,
 }
 
@@ -66,7 +76,7 @@ pub struct InstallInfo {
 }
 
 #[derive(Debug)]
-pub struct Crates {
+pub struct LocalCrate {
     name: String,
     description: String,
     features: Vec<String>,
@@ -95,7 +105,7 @@ impl MainWindow {
 
         let crate_file: CratesFile = serde_json::from_str(&file_content).unwrap();
 
-        let mut crate_list = Vec::new();
+        let mut crate_list = BTreeMap::new();
 
         for (name, install_info) in crate_file.installs {
             let split_name = name.split(' ').collect::<Vec<&str>>();
@@ -115,7 +125,7 @@ impl MainWindow {
                 continue;
             };
 
-            crate_list.push(Crates {
+            let local_crate = LocalCrate {
                 name: name.to_string(),
                 description: "A very useful Rust utility for all your command-line needs."
                     .to_string(),
@@ -123,16 +133,19 @@ impl MainWindow {
                 features: install_info.features,
                 no_default_features: install_info.no_default_features,
                 crates_version: None,
-            });
-        }
+            };
 
-        crate_list.sort_by(|a, b| a.name.cmp(&b.name));
+            crate_list.insert(name.to_string(), local_crate);
+        }
 
         info!("Loaded {} crates", crate_list.len());
 
         Self {
             showing: Page::Crates,
             crate_list,
+            fetch_progress: 0,
+            hovering: None,
+            lerp_state: LerpState::new(0.3),
         }
     }
 
@@ -150,18 +163,56 @@ impl MainWindow {
             Message::FetchEvent(event) => {
                 match event {
                     FetchEvent::Ready(mut sender) => {
+                        let crate_names = self.crate_list.keys().cloned().collect();
+
                         return Task::perform(
                             async move {
-                                let _ = sender
-                                    .send(FetcherInput::CrateList(vec![
-                                        "tokio".into(),
-                                        "serde".into(),
-                                        "reqwest".into(),
-                                    ]))
-                                    .await;
+                                let _ = sender.send(FetcherInput::CrateList(crate_names)).await;
                             },
                             |()| Message::None,
                         );
+                    }
+                    FetchEvent::Success((details, index)) => {
+                        self.fetch_progress = index + 1;
+
+                        let mut progress_status = 0.0;
+                        let total_item = self.crate_list.len();
+
+                        if total_item != 0 && self.fetch_progress != 0 {
+                            progress_status =
+                                (self.fetch_progress as f32 / total_item as f32) * 100.0;
+                        }
+
+                        self.lerp_state
+                            .lerp("fetch_progress", progress_status as f64);
+
+                        self.lerp_state.lerp("fetch_progress_height", 50.0);
+
+                        let description = details
+                            .crate_data
+                            .description
+                            .unwrap_or(String::from("The crate has no description"));
+
+                        let latest_version = Version::parse(&details.crate_data.max_version);
+
+                        if let Err(e) = latest_version {
+                            error!(
+                                "Failed to parse version: {e}. Was parsing {}",
+                                details.crate_data.max_version
+                            );
+                            return Task::none();
+                        }
+
+                        let latest_version = latest_version.unwrap();
+
+                        let target_crate =
+                            self.crate_list.get_mut(&details.crate_data.name).unwrap();
+
+                        target_crate.description = description;
+                        target_crate.crates_version = Some(latest_version);
+                    }
+                    FetchEvent::Done => {
+                        self.lerp_state.lerp("fetch_progress_height", 0.0);
                     }
                     _ => {
                         info!("Received fetch event: {event:?}");
@@ -169,15 +220,50 @@ impl MainWindow {
                 }
                 Task::none()
             }
+            Message::Hovering(index) => {
+                self.hovering = Some(index);
+                Task::none()
+            }
+            Message::HoveringExit(index) => {
+                if let Some(hovering) = self.hovering
+                    && hovering == index
+                {
+                    self.hovering = None;
+                }
+                Task::none()
+            }
+            Message::Tick => {
+                self.lerp_state.lerp_all();
+                Task::none()
+            }
             Message::None => Task::none(),
         }
     }
 
     fn view(&self) -> Element<'_, Message> {
-        self.crate_items()
+        let mut to_render = column![self.crate_items()];
+
+        if self.fetch_progress != self.crate_list.len() {
+            to_render = to_render.push(self.fetch_progress());
+        } else {
+            let container_height = self.lerp_state.get("fetch_progress_height");
+
+            if container_height.unwrap_or(0.0) > 0.0 {
+                to_render = to_render.push(self.fetch_progress());
+            }
+        }
+
+        to_render.into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        Subscription::run(fetch_crate_updates).map(Message::FetchEvent)
+        Subscription::batch([
+            Subscription::run(fetch_crate_updates).map(Message::FetchEvent),
+            if self.lerp_state.has_active_lerps() {
+                time::every(Duration::from_millis(16)).map(|_| Message::Tick)
+            } else {
+                Subscription::none()
+            },
+        ])
     }
 }
