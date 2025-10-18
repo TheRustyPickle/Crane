@@ -6,7 +6,7 @@ use iced::widget::text::Wrapping;
 use iced::widget::{button, center, column, container, mouse_area, row, scrollable, space, text};
 use iced::{Alignment, Border, Color, Element, Font, Length, Padding, Shadow, Theme};
 
-use crate::icon::refresh;
+use crate::icon::{refresh, tick, trash};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
@@ -32,52 +32,90 @@ impl MainWindow {
                 .spacing(8)
                 .align_x(Alignment::Start);
 
-                let version_text = if let Some(version) = &crate_item.crates_version {
+                let mut for_removal = false;
+
+                let mut version_text = text(format!("v{}", crate_item.version)).font(bold_font);
+
+                if let Some(version) = &crate_item.crates_version {
                     if version > &crate_item.version {
-                        text(format!("v{} -> v{}", crate_item.version, version))
-                    } else {
-                        text(format!("v{}", crate_item.version))
+                        version_text =
+                            text(format!("v{} → v{}", crate_item.version, version)).font(bold_font);
+                    } else if version == &crate_item.version {
+                        for_removal = true;
                     }
+                }
+
+                let icon = if for_removal {
+                    if self.delete_crates.contains_key(&crate_item.name) {
+                        tick().style(|_| text::Style {
+                            color: Color::parse("#F71735"),
+                        })
+                    } else {
+                        trash().style(|_| text::Style {
+                            color: Color::parse("#F71735"),
+                        })
+                    }
+                } else if self.update_crates.contains_key(&crate_item.name) {
+                    tick().style(|_| text::Style {
+                        color: Some(Color::WHITE),
+                    })
                 } else {
-                    text(format!("v{}", crate_item.version))
+                    refresh().style(|_| text::Style {
+                        color: Some(Color::WHITE),
+                    })
                 };
 
-                let actions = column![
-                    version_text.size(15),
-                    button(refresh())
-                        .on_press(Message::UpdatePressed(crate_item.name.clone()))
-                        .style(|theme: &Theme, status| {
-                            let palette = theme.extended_palette();
-                            let mut style = button::Style {
-                                border: Border {
-                                    color: palette.primary.strong.color,
-                                    width: 1.0,
-                                    radius: 10.into(),
-                                },
-                                ..Default::default()
-                            };
-
-                            match status {
-                                Status::Active => {
-                                    style.background = Some(palette.primary.strong.color.into());
-                                }
-                                Status::Hovered => {
-                                    style.background = Some(palette.primary.weak.color.into());
-                                }
-                                Status::Pressed => {
-                                    style.background = Some(palette.primary.base.color.into());
-                                    style.shadow.offset = [1.0, 1.0].into();
-                                }
-                                Status::Disabled => {
-                                    style.background = Some(palette.background.weak.color.into());
-                                }
+                let mut icon_button = button(icon).style(move |theme: &Theme, status| {
+                    let palette = theme.extended_palette();
+                    let mut style = button::Style {
+                        border: Border {
+                            radius: 8.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    };
+                    match status {
+                        Status::Active => {
+                            if for_removal {
+                                style.background = Some(Color::parse("#FFCDD2").unwrap().into());
+                            } else {
+                                style.background = Some(palette.primary.strong.color.into());
                             }
+                        }
+                        Status::Hovered => {
+                            if for_removal {
+                                style.background = Some(Color::parse("#FFB3B8").unwrap().into());
+                            } else {
+                                style.background = Some(palette.primary.weak.color.into());
+                            }
+                        }
+                        Status::Pressed => {
+                            if for_removal {
+                                style.background = Some(Color::parse("#FF999D").unwrap().into());
+                            } else {
+                                style.background = Some(palette.primary.base.color.into());
+                            }
+                        }
+                        Status::Disabled => {
+                            style.background = Some(palette.background.strongest.color.into());
+                        }
+                    }
 
-                            style
-                        })
-                ]
-                .spacing(8)
-                .align_x(Alignment::End);
+                    style
+                });
+
+                if crate_item.crates_version.is_some() {
+                    let crate_name = crate_item.name.clone();
+                    if for_removal {
+                        icon_button = icon_button.on_press(Message::DeletePressed(crate_name))
+                    } else {
+                        icon_button = icon_button.on_press(Message::UpdatePressed(crate_name))
+                    }
+                }
+
+                let actions = column![version_text.size(15), icon_button]
+                    .spacing(8)
+                    .align_x(Alignment::End);
 
                 let card_content = row![details, actions].spacing(10);
 
