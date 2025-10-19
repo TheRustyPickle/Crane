@@ -1,6 +1,6 @@
 // Generated automatically by iced_fontello at build time.
 // Do not edit manually. Source: ../fonts/icons.toml
-// 0e56c2cec3251ca9aa9d4b8e0fc0776bfe67fc4ced444eee6f00dca6831f4891
+// e9bd628ccf279674ed020b121d51bc8c6b86a6f0d9df3fb0e0e47e12ce5e16ae
 use iced::Font;
 use iced::widget::{Text, text};
 
@@ -8,6 +8,10 @@ pub const FONT: &[u8] = include_bytes!("../fonts/icons.ttf");
 
 pub fn refresh<'a>() -> Text<'a> {
     icon("\u{E760}")
+}
+
+pub fn right_arrow<'a>() -> Text<'a> {
+    icon("\u{E01A}")
 }
 
 pub fn tick<'a>() -> Text<'a> {

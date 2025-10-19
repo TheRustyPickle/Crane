@@ -1,10 +1,12 @@
 mod components;
 mod icon;
 mod lerp;
+mod utils;
 mod worker;
 
 use dirs::home_dir;
-use iced::futures::SinkExt as _;
+use iced::futures::SinkExt;
+use iced::futures::channel::mpsc::Sender;
 use iced::widget::column;
 use iced::{Element, Subscription, Task, Theme, time, window};
 use log::{LevelFilter, error, info};
@@ -16,8 +18,8 @@ use std::io::Read as _;
 use std::time::Duration;
 
 use crate::components::{
-    FETCH_PROGRESS_HEIGHT, FETCH_PROGRESS_HEIGHT_KEY, OPERATION_CONTAINER, OPERATION_CONTAINER_KEY,
-    PROGRESS_KEY,
+    FETCH_PROGRESS_HEIGHT, FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_KEY, OPERATION_CONTAINER,
+    OPERATION_CONTAINER_KEY, OPERATION_PROGRESS_KEY,
 };
 use crate::lerp::LerpState;
 use crate::worker::{FetchEvent, FetcherInput, event_worker};
@@ -37,21 +39,34 @@ pub fn main() -> iced::Result {
         .run()
 }
 
-#[derive(Default)]
 pub struct MainWindow {
     showing: Page,
+    worker: Option<Sender<FetcherInput>>,
     crate_list: BTreeMap<String, LocalCrate>,
     fetch_progress: usize,
     hovering: Option<usize>,
     lerp_state: LerpState,
     update_crates: BTreeMap<String, LocalCrate>,
     delete_crates: BTreeMap<String, LocalCrate>,
+    operation_crate: Option<OperationCrate>,
+}
+
+pub struct OperationCrate {
+    name: String,
+    operation_type: OperationType,
+    index: usize,
+}
+
+pub enum OperationType {
+    Update,
+    Delete,
 }
 
 #[derive(Clone, Default, Copy, PartialEq, Eq)]
 pub enum Page {
     #[default]
     Crates,
+    Logs,
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +80,7 @@ pub enum Message {
     Tick,
     CancelOperation,
     ApplyOperation,
+    ShowLog,
     None,
 }
 
@@ -89,8 +105,8 @@ pub struct InstallInfo {
 pub struct LocalCrate {
     name: String,
     description: String,
-    features: Vec<String>,
-    no_default_features: bool,
+    pub features: Vec<String>,
+    pub no_default_features: bool,
     version: Version,
     crates_version: Option<Version>,
 }
@@ -152,12 +168,14 @@ impl MainWindow {
 
         Self {
             showing: Page::Crates,
+            worker: None,
             crate_list,
             fetch_progress: 0,
             hovering: None,
             lerp_state: LerpState::new(0.3),
             update_crates: BTreeMap::new(),
             delete_crates: BTreeMap::new(),
+            operation_crate: None,
         }
     }
 
@@ -177,7 +195,7 @@ impl MainWindow {
                     self.update_crates.insert(crate_name.clone(), target_crate);
                 }
 
-                self.update_lerp_states();
+                self.update_lerp_states_operation_container();
             }
             Message::DeletePressed(crate_name) => {
                 let target_crate = self.crate_list.get(&crate_name).unwrap().clone();
@@ -188,10 +206,11 @@ impl MainWindow {
                     self.delete_crates.insert(crate_name.clone(), target_crate);
                 }
 
-                self.update_lerp_states();
+                self.update_lerp_states_operation_container();
             }
             Message::FetchEvent(event) => match event {
                 FetchEvent::Ready(mut sender) => {
+                    self.worker = Some(sender.clone());
                     let crate_names = self.crate_list.keys().cloned().collect();
 
                     return Task::perform(
@@ -211,7 +230,8 @@ impl MainWindow {
                         progress_status = (self.fetch_progress as f32 / total_item as f32) * 100.0;
                     }
 
-                    self.lerp_state.lerp(PROGRESS_KEY, progress_status as f64);
+                    self.lerp_state
+                        .lerp(FETCH_PROGRESS_KEY, progress_status as f64);
 
                     self.lerp_state
                         .lerp(FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_HEIGHT);
@@ -244,6 +264,52 @@ impl MainWindow {
                 FetchEvent::Log(log) => {
                     info!("{log}");
                 }
+                FetchEvent::DoneUpdate => {
+                    let Some(mut worker) = self.worker.clone() else {
+                        return Task::none();
+                    };
+
+                    return if !self.delete_crates.is_empty() {
+                        let crate_list = self.delete_crates.keys().cloned().collect();
+
+                        Task::perform(
+                            async move {
+                                let _ = worker.send(FetcherInput::DeleteCrates(crate_list)).await;
+                            },
+                            |()| Message::None,
+                        )
+                    } else {
+                        self.operation_crate = None;
+                        self.delete_crates.clear();
+                        self.update_crates.clear();
+                        self.update_lerp_states_operation_container();
+                        Task::none()
+                    };
+                }
+                FetchEvent::DoneDelete => {
+                    self.delete_crates.clear();
+                    self.update_crates.clear();
+                    self.update_lerp_states_operation_container();
+                    self.operation_crate = None;
+                }
+                FetchEvent::Updating((name, index)) => {
+                    let operation_crate = OperationCrate {
+                        name,
+                        index,
+                        operation_type: OperationType::Update,
+                    };
+                    self.operation_crate = Some(operation_crate);
+                    self.update_lerp_states_operation_progress();
+                }
+                FetchEvent::Deleting((name, index)) => {
+                    let operation_crate = OperationCrate {
+                        name,
+                        index,
+                        operation_type: OperationType::Delete,
+                    };
+                    self.operation_crate = Some(operation_crate);
+                    self.update_lerp_states_operation_progress();
+                }
                 _ => {
                     info!("Received fetch event: {event:?}");
                 }
@@ -264,9 +330,42 @@ impl MainWindow {
             Message::CancelOperation => {
                 self.delete_crates.clear();
                 self.update_crates.clear();
-                self.update_lerp_states();
+                self.update_lerp_states_operation_container();
             }
-            Message::ApplyOperation => {}
+            Message::ApplyOperation => {
+                let Some(mut worker) = self.worker.clone() else {
+                    return Task::none();
+                };
+
+                let to_return;
+
+                if !self.update_crates.is_empty() {
+                    let crate_list = self.update_crates.values().cloned().collect();
+
+                    to_return = Task::perform(
+                        async move {
+                            let _ = worker.send(FetcherInput::UpdateCrates(crate_list)).await;
+                        },
+                        |()| Message::None,
+                    );
+                } else if !self.delete_crates.is_empty() {
+                    let crate_list = self.delete_crates.keys().cloned().collect();
+
+                    to_return = Task::perform(
+                        async move {
+                            let _ = worker.send(FetcherInput::DeleteCrates(crate_list)).await;
+                        },
+                        |()| Message::None,
+                    );
+                } else {
+                    to_return = Task::none();
+                }
+
+                return to_return;
+            }
+            Message::ShowLog => {
+                self.showing = Page::Logs;
+            }
             Message::None => {}
         }
 
@@ -289,7 +388,7 @@ impl MainWindow {
         let container_height = self.lerp_state.get("operation_container_height");
 
         if container_height.unwrap_or(0.0) > 0.0 {
-            to_render = to_render.push(self.selected_prompt());
+            to_render = to_render.push(self.operation_prompt());
         }
 
         to_render.into()
@@ -306,12 +405,38 @@ impl MainWindow {
         ])
     }
 
-    fn update_lerp_states(&mut self) {
+    fn update_lerp_states_operation_container(&mut self) {
         if self.update_crates.is_empty() && self.delete_crates.is_empty() {
             self.lerp_state.lerp(OPERATION_CONTAINER_KEY, 0.0);
         } else {
             self.lerp_state
                 .lerp(OPERATION_CONTAINER_KEY, OPERATION_CONTAINER);
         }
+    }
+
+    fn update_lerp_states_operation_progress(&mut self) {
+        let total_operation = self.update_crates.len() + self.delete_crates.len();
+
+        let Some(ongoing_operation) = self.operation_crate.as_ref() else {
+            return;
+        };
+
+        let mut currently_at;
+
+        match ongoing_operation.operation_type {
+            OperationType::Update => {
+                currently_at = ongoing_operation.index;
+            }
+            OperationType::Delete => {
+                currently_at = self.update_crates.len() + ongoing_operation.index;
+            }
+        }
+
+        currently_at += 1;
+
+        let progress_status = (currently_at as f64 / total_operation as f64) * 100.0;
+
+        self.lerp_state
+            .lerp(OPERATION_PROGRESS_KEY, progress_status);
     }
 }
