@@ -20,7 +20,7 @@ use crate::components::{
     PROGRESS_KEY,
 };
 use crate::lerp::LerpState;
-use crate::worker::{FetchEvent, FetcherInput, fetch_crate_updates};
+use crate::worker::{FetchEvent, FetcherInput, event_worker};
 
 pub fn main() -> iced::Result {
     pretty_env_logger::formatted_timed_builder()
@@ -167,7 +167,7 @@ impl MainWindow {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Close => window::latest().and_then(window::close),
+            Message::Close => return window::latest().and_then(window::close),
             Message::UpdatePressed(crate_name) => {
                 let target_crate = self.crate_list.get(&crate_name).unwrap().clone();
 
@@ -178,8 +178,6 @@ impl MainWindow {
                 }
 
                 self.update_lerp_states();
-
-                Task::none()
             }
             Message::DeletePressed(crate_name) => {
                 let target_crate = self.crate_list.get(&crate_name).unwrap().clone();
@@ -191,72 +189,67 @@ impl MainWindow {
                 }
 
                 self.update_lerp_states();
-
-                Task::none()
             }
-            Message::FetchEvent(event) => {
-                match event {
-                    FetchEvent::Ready(mut sender) => {
-                        let crate_names = self.crate_list.keys().cloned().collect();
+            Message::FetchEvent(event) => match event {
+                FetchEvent::Ready(mut sender) => {
+                    let crate_names = self.crate_list.keys().cloned().collect();
 
-                        return Task::perform(
-                            async move {
-                                let _ = sender.send(FetcherInput::CrateList(crate_names)).await;
-                            },
-                            |()| Message::None,
-                        );
-                    }
-                    FetchEvent::Success((details, index)) => {
-                        self.fetch_progress = index + 1;
-
-                        let mut progress_status = 0.0;
-                        let total_item = self.crate_list.len();
-
-                        if total_item != 0 && self.fetch_progress != 0 {
-                            progress_status =
-                                (self.fetch_progress as f32 / total_item as f32) * 100.0;
-                        }
-
-                        self.lerp_state.lerp(PROGRESS_KEY, progress_status as f64);
-
-                        self.lerp_state
-                            .lerp(FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_HEIGHT);
-
-                        let description = details
-                            .crate_data
-                            .description
-                            .unwrap_or(String::from("The crate has no description"));
-
-                        let latest_version = Version::parse(&details.crate_data.max_version);
-
-                        if let Err(e) = latest_version {
-                            error!(
-                                "Failed to parse version: {e}. Was parsing {}",
-                                details.crate_data.max_version
-                            );
-                            return Task::none();
-                        }
-
-                        let latest_version = latest_version.unwrap();
-
-                        let target_crate =
-                            self.crate_list.get_mut(&details.crate_data.name).unwrap();
-
-                        target_crate.description = description;
-                        target_crate.crates_version = Some(latest_version);
-                    }
-                    FetchEvent::Done => {
-                        self.lerp_state.lerp("fetch_progress_height", 0.0);
-                    }
-                    _ => {
-                        info!("Received fetch event: {event:?}");
-                    }
+                    return Task::perform(
+                        async move {
+                            let _ = sender.send(FetcherInput::CrateList(crate_names)).await;
+                        },
+                        |()| Message::None,
+                    );
                 }
-                Task::none()
-            }
+                FetchEvent::Success((details, index)) => {
+                    self.fetch_progress = index + 1;
+
+                    let mut progress_status = 0.0;
+                    let total_item = self.crate_list.len();
+
+                    if total_item != 0 && self.fetch_progress != 0 {
+                        progress_status = (self.fetch_progress as f32 / total_item as f32) * 100.0;
+                    }
+
+                    self.lerp_state.lerp(PROGRESS_KEY, progress_status as f64);
+
+                    self.lerp_state
+                        .lerp(FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_HEIGHT);
+
+                    let description = details
+                        .crate_data
+                        .description
+                        .unwrap_or(String::from("The crate has no description"));
+
+                    let latest_version = Version::parse(&details.crate_data.max_version);
+
+                    if let Err(e) = latest_version {
+                        error!(
+                            "Failed to parse version: {e}. Was parsing {}",
+                            details.crate_data.max_version
+                        );
+                        return Task::none();
+                    }
+
+                    let latest_version = latest_version.unwrap();
+
+                    let target_crate = self.crate_list.get_mut(&details.crate_data.name).unwrap();
+
+                    target_crate.description = description;
+                    target_crate.crates_version = Some(latest_version);
+                }
+                FetchEvent::DoneCrateCheck => {
+                    self.lerp_state.lerp("fetch_progress_height", 0.0);
+                }
+                FetchEvent::Log(log) => {
+                    info!("{log}");
+                }
+                _ => {
+                    info!("Received fetch event: {event:?}");
+                }
+            },
             Message::Hovering(index) => {
                 self.hovering = Some(index);
-                Task::none()
             }
             Message::HoveringExit(index) => {
                 if let Some(hovering) = self.hovering
@@ -264,22 +257,20 @@ impl MainWindow {
                 {
                     self.hovering = None;
                 }
-                Task::none()
             }
             Message::Tick => {
                 self.lerp_state.lerp_all();
-                Task::none()
             }
             Message::CancelOperation => {
                 self.delete_crates.clear();
                 self.update_crates.clear();
                 self.update_lerp_states();
-
-                Task::none()
             }
-            Message::ApplyOperation => Task::none(),
-            Message::None => Task::none(),
+            Message::ApplyOperation => {}
+            Message::None => {}
         }
+
+        Task::none()
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -306,7 +297,7 @@ impl MainWindow {
 
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
-            Subscription::run(fetch_crate_updates).map(Message::FetchEvent),
+            Subscription::run(event_worker).map(Message::FetchEvent),
             if self.lerp_state.has_active_lerps() {
                 time::every(Duration::from_millis(16)).map(|_| Message::Tick)
             } else {
