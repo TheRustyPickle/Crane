@@ -8,16 +8,18 @@ use crate::{MainWindow, Message};
 
 impl MainWindow {
     pub fn log_page(&self) -> Element<'_, Message> {
-        let back_button = primary_button(
-            left_arrow()
-                .align_y(Alignment::Center)
-                .align_x(Alignment::Center)
-                .style(|_| text::Style {
-                    color: Some(Color::WHITE),
-                }),
+        let back_button = container(
+            primary_button(
+                left_arrow()
+                    .align_y(Alignment::Center)
+                    .align_x(Alignment::Center)
+                    .style(|_| text::Style {
+                        color: Some(Color::WHITE),
+                    }),
+            )
+            .on_press(Message::ShowCrates)
+            .width(60),
         )
-        .on_press(Message::ShowCrates)
-        .width(50)
         .padding(5);
 
         let mut log_text = self.logs.join("\n");
@@ -26,10 +28,13 @@ impl MainWindow {
             log_text = "No logs to show".to_string();
         }
 
-        let logs = text(log_text)
-            .wrapping(text::Wrapping::Glyph)
-            .font(mono())
-            .size(15);
+        let logs = container(
+            text(log_text)
+                .wrapping(text::Wrapping::Glyph)
+                .font(mono())
+                .size(15),
+        )
+        .padding(5);
 
         let logs_container = row![logs, space::horizontal()];
 

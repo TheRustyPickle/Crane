@@ -29,7 +29,8 @@ impl MainWindow {
 
         let item_text = text(format!(
             "Fetching crates ({} of {})",
-            self.fetch_progress, total_item
+            self.fetch_progress.unwrap_or_default(),
+            total_item
         ))
         .font(bold());
 
@@ -102,7 +103,7 @@ impl MainWindow {
             .align_x(Alignment::End)
             .align_y(Alignment::Center);
 
-        if self.fetch_progress == self.crate_list.len() {
+        if self.fetch_progress.is_none() {
             apply_button = apply_button.on_press(Message::ApplyOperation);
         }
 
