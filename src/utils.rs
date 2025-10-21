@@ -1,8 +1,7 @@
 use iced::font::{Family, Weight};
 use iced::widget::button::Status;
 use iced::widget::{Button, button};
-use iced::{Border, Theme};
-use iced::{Color, Font};
+use iced::{Border, Color, Font, Theme};
 
 pub fn bold() -> Font {
     Font {
