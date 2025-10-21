@@ -147,6 +147,8 @@ impl MainWindow {
         )
         .padding(Padding {
             right: 5.0,
+            bottom: 5.0,
+            top: 5.0,
             ..Default::default()
         })
         .height(Length::Fill)

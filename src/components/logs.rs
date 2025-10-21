@@ -1,5 +1,5 @@
 use iced::widget::scrollable::Scrollbar;
-use iced::widget::{column, container, scrollable, text};
+use iced::widget::{column, container, row, scrollable, space, text};
 use iced::{Alignment, Color, Element, Length, Padding};
 
 use crate::icon::left_arrow;
@@ -26,18 +26,23 @@ impl MainWindow {
             log_text = "No logs to show".to_string();
         }
 
-        let logs = text(log_text).font(mono()).size(15);
+        let logs = text(log_text)
+            .wrapping(text::Wrapping::Glyph)
+            .font(mono())
+            .size(15);
 
-        let log_layout = column![back_button, logs].padding(5).spacing(10);
+        let logs_container = row![logs, space::horizontal()];
 
-        container(
-            scrollable(log_layout).direction(scrollable::Direction::Vertical(Scrollbar::new())),
+        let scroll_area = container(
+            scrollable(logs_container).direction(scrollable::Direction::Vertical(Scrollbar::new())),
         )
         .padding(Padding {
             right: 5.0,
+            bottom: 5.0,
             ..Default::default()
         })
-        .height(Length::Fill)
-        .into()
+        .height(Length::Fill);
+
+        column![back_button, scroll_area].spacing(10).into()
     }
 }
