@@ -83,6 +83,7 @@ pub enum Message {
     ApplyOperation,
     ShowLog,
     ShowCrates,
+    UpdateAll,
     None,
 }
 
@@ -354,6 +355,8 @@ impl MainWindow {
             }
             Message::Tick => {
                 self.lerp_state.lerp_all();
+                self.update_lerp_states_operation_container();
+                self.update_lerp_states_operation_progress();
             }
             Message::CancelOperation => {
                 self.delete_crates.clear();
@@ -396,6 +399,16 @@ impl MainWindow {
             }
             Message::ShowCrates => {
                 self.showing = Page::Crates;
+            }
+            Message::UpdateAll => {
+                for item in self.crate_list.values() {
+                    if let Some(crate_version) = item.crates_version.as_ref()
+                        && crate_version > &item.version
+                    {
+                        self.update_crates.insert(item.name.clone(), item.clone());
+                    }
+                }
+                self.update_lerp_states_operation_container();
             }
             Message::None => {}
         }

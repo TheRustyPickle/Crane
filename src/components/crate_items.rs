@@ -1,29 +1,39 @@
 use iced::border::Radius;
-use iced::font::Weight;
 use iced::widget::scrollable::Scrollbar;
 use iced::widget::text::Wrapping;
 use iced::widget::{center, column, container, mouse_area, row, scrollable, space, text};
-use iced::{Alignment, Border, Color, Element, Font, Length, Padding, Shadow, Theme};
+use iced::{Alignment, Border, Color, Element, Length, Padding, Shadow, Theme};
 
 use crate::icon::{refresh, tick, trash};
-use crate::utils::{danger_button, primary_button};
+use crate::utils::{bold, danger_button, primary_button};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
     #[must_use]
     pub fn crate_items(&self) -> Element<'_, Message> {
-        let bold_font = Font {
-            weight: Weight::Bold,
+        let mut select_all_button =
+            primary_button(text("Update All").font(bold()).style(|_| text::Style {
+                color: Some(Color::WHITE),
+            }));
+
+        if self.fetch_progress.is_none() {
+            select_all_button = select_all_button.on_press(Message::UpdateAll);
+        }
+
+        let button_container = container(select_all_button).padding(Padding {
+            bottom: 5.0,
             ..Default::default()
-        };
+        });
+
+        let crate_columns = column![button_container];
 
         let crate_cards = self
             .crate_list
             .values()
             .enumerate()
-            .fold(column![], |column, (index, crate_item)| {
+            .fold(crate_columns, |column, (index, crate_item)| {
                 let details = column![
-                    text(&crate_item.name).size(18).font(bold_font),
+                    text(&crate_item.name).size(18).font(bold()),
                     text(&crate_item.description)
                         .size(15)
                         .wrapping(Wrapping::Glyph),
@@ -34,12 +44,12 @@ impl MainWindow {
 
                 let mut for_removal = false;
 
-                let mut version_text = text(format!("v{}", crate_item.version)).font(bold_font);
+                let mut version_text = text(format!("v{}", crate_item.version)).font(bold());
 
                 if let Some(version) = &crate_item.crates_version {
                     if version > &crate_item.version {
                         version_text =
-                            text(format!("v{} → v{}", crate_item.version, version)).font(bold_font);
+                            text(format!("v{} → v{}", crate_item.version, version)).font(bold());
                     } else if version == &crate_item.version {
                         for_removal = true;
                     }
