@@ -1,12 +1,12 @@
 use iced::border::Radius;
 use iced::font::Weight;
-use iced::widget::button::Status;
 use iced::widget::scrollable::Scrollbar;
 use iced::widget::text::Wrapping;
-use iced::widget::{button, center, column, container, mouse_area, row, scrollable, space, text};
+use iced::widget::{center, column, container, mouse_area, row, scrollable, space, text};
 use iced::{Alignment, Border, Color, Element, Font, Length, Padding, Shadow, Theme};
 
 use crate::icon::{refresh, tick, trash};
+use crate::utils::{danger_button, primary_button};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
@@ -65,44 +65,11 @@ impl MainWindow {
                     })
                 };
 
-                let mut icon_button = button(icon).style(move |theme: &Theme, status| {
-                    let palette = theme.extended_palette();
-                    let mut style = button::Style {
-                        border: Border {
-                            radius: 8.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    };
-                    match status {
-                        Status::Active => {
-                            if for_removal {
-                                style.background = Some(Color::parse("#FFCDD2").unwrap().into());
-                            } else {
-                                style.background = Some(palette.primary.strong.color.into());
-                            }
-                        }
-                        Status::Hovered => {
-                            if for_removal {
-                                style.background = Some(Color::parse("#FFB3B8").unwrap().into());
-                            } else {
-                                style.background = Some(palette.primary.weak.color.into());
-                            }
-                        }
-                        Status::Pressed => {
-                            if for_removal {
-                                style.background = Some(Color::parse("#FF999D").unwrap().into());
-                            } else {
-                                style.background = Some(palette.primary.base.color.into());
-                            }
-                        }
-                        Status::Disabled => {
-                            style.background = Some(palette.background.strongest.color.into());
-                        }
-                    }
-
-                    style
-                });
+                let mut icon_button = if for_removal {
+                    danger_button(icon)
+                } else {
+                    primary_button(icon)
+                };
 
                 if crate_item.crates_version.is_some() {
                     let crate_name = crate_item.name.clone();

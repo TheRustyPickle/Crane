@@ -1,3 +1,4 @@
+mod logs;
 mod bottom_bar;
 mod crate_items;
 

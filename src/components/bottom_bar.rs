@@ -1,10 +1,9 @@
-use iced::widget::button::Status;
-use iced::widget::{button, center, column, container, progress_bar, row, text};
-use iced::{Alignment, Border, Color, Element, Length, Padding, Theme};
+use iced::widget::{center, column, container, progress_bar, row, text};
+use iced::{Alignment, Color, Element, Length, Theme};
 
 use crate::icon::right_arrow;
-use crate::utils::bold;
-use crate::{MainWindow, Message, OperationType};
+use crate::utils::{bold, primary_button, secondary_button};
+use crate::{MainWindow, Message, OperationType, Page};
 
 pub const OPERATION_CONTAINER: f64 = 60.0;
 pub const OPERATION_CONTAINER_KEY: &str = "operation_container_height";
@@ -84,68 +83,24 @@ impl MainWindow {
             text(operation_text).font(bold())
         };
 
-        let mut apply_button = button(text("Apply").font(bold()).style(|_| text::Style {
+        let mut apply_button = primary_button(text("Apply").font(bold()).style(|_| text::Style {
             color: Some(Color::WHITE),
-        }))
-        .style(move |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            let mut style = button::Style {
-                border: Border {
-                    radius: 8.into(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-            match status {
-                Status::Active => {
-                    style.background = Some(palette.primary.strong.color.into());
-                }
-                Status::Hovered => {
-                    style.background = Some(palette.primary.weak.color.into());
-                }
-                Status::Pressed => {
-                    style.background = Some(palette.primary.base.color.into());
-                }
-                Status::Disabled => {
-                    style.background = Some(palette.background.strongest.color.into());
-                }
-            }
+        }));
 
-            style
-        });
+        let cancel_button =
+            secondary_button(text("Cancel").font(bold())).on_press(Message::CancelOperation);
 
-        let cancel_button = button(text("Cancel").font(bold()))
-            .on_press(Message::CancelOperation)
-            .style(|theme: &Theme, status| {
-                let palette = theme.extended_palette();
+        let mut log_button = primary_button(right_arrow().style(|_| text::Style {
+            color: Some(Color::WHITE),
+        }));
 
-                let mut style = button::Style {
-                    border: Border {
-                        radius: 8.into(),
-                        width: 1.0,
-                        color: palette.background.strong.color,
-                    },
-                    ..Default::default()
-                };
+        if let Page::Crates = self.showing {
+            log_button = log_button.on_press(Message::ShowLog);
+        }
 
-                match status {
-                    Status::Active => {
-                        style.background = Some(palette.background.weak.color.into());
-                    }
-                    Status::Hovered => {
-                        style.background = Some(palette.background.base.color.into());
-                    }
-                    Status::Pressed => {
-                        style.background = Some(palette.background.strong.color.into());
-                    }
-                    Status::Disabled => {
-                        style.background = Some(palette.background.strongest.color.into());
-                        style.border.color = palette.background.strongest.color;
-                    }
-                }
-
-                style
-            });
+        let mut log_button = container(log_button)
+            .align_x(Alignment::End)
+            .align_y(Alignment::Center);
 
         if self.fetch_progress == self.crate_list.len() {
             apply_button = apply_button.on_press(Message::ApplyOperation);
@@ -154,7 +109,7 @@ impl MainWindow {
         let mut layout = column![center(operation_text)].width(Length::Fill);
 
         if self.operation_crate.is_none() {
-            let buttons = row![cancel_button, apply_button]
+            let buttons = row![cancel_button, apply_button, log_button]
                 .spacing(10)
                 .align_y(Alignment::Center);
 
@@ -177,47 +132,9 @@ impl MainWindow {
             .width(Length::Fill)
             .padding(5);
 
-            let log_button = button(right_arrow().style(|_| text::Style {
-                color: Some(Color::WHITE),
-            }))
-            .on_press(Message::ShowLog)
-            .style(move |theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                let mut style = button::Style {
-                    border: Border {
-                        radius: 8.into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                };
-                match status {
-                    Status::Active => {
-                        style.background = Some(palette.primary.strong.color.into());
-                    }
-                    Status::Hovered => {
-                        style.background = Some(palette.primary.weak.color.into());
-                    }
-                    Status::Pressed => {
-                        style.background = Some(palette.primary.base.color.into());
-                    }
-                    Status::Disabled => {
-                        style.background = Some(palette.background.strongest.color.into());
-                    }
-                }
+            log_button = log_button.padding(5);
 
-                style
-            });
-
-            let log_button = container(log_button)
-                .align_x(Alignment::End)
-                .padding(Padding {
-                    bottom: 5.0,
-                    right: 5.0,
-                    ..Default::default()
-                })
-                .align_y(Alignment::Center);
-
-            let container = row![progress_bar, log_button,]
+            let container = row![progress_bar, log_button]
                 .spacing(5.0)
                 .align_y(Alignment::Center);
 

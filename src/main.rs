@@ -49,6 +49,7 @@ pub struct MainWindow {
     update_crates: BTreeMap<String, LocalCrate>,
     delete_crates: BTreeMap<String, LocalCrate>,
     operation_crate: Option<OperationCrate>,
+    logs: Vec<String>,
 }
 
 pub struct OperationCrate {
@@ -81,6 +82,7 @@ pub enum Message {
     CancelOperation,
     ApplyOperation,
     ShowLog,
+    ShowCrates,
     None,
 }
 
@@ -176,6 +178,7 @@ impl MainWindow {
             update_crates: BTreeMap::new(),
             delete_crates: BTreeMap::new(),
             operation_crate: None,
+            logs: Vec::new(),
         }
     }
 
@@ -262,7 +265,7 @@ impl MainWindow {
                     self.lerp_state.lerp("fetch_progress_height", 0.0);
                 }
                 FetchEvent::Log(log) => {
-                    info!("{log}");
+                    self.logs.push(log);
                 }
                 FetchEvent::DoneUpdate => {
                     let Some(mut worker) = self.worker.clone() else {
@@ -366,6 +369,9 @@ impl MainWindow {
             Message::ShowLog => {
                 self.showing = Page::Logs;
             }
+            Message::ShowCrates => {
+                self.showing = Page::Crates;
+            }
             Message::None => {}
         }
 
@@ -373,7 +379,15 @@ impl MainWindow {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let mut to_render = column![self.crate_items()];
+        let mut to_render = column![];
+        match self.showing {
+            Page::Crates => {
+                to_render = to_render.push(self.crate_items());
+            }
+            Page::Logs => {
+                to_render = to_render.push(self.log_page());
+            }
+        }
 
         if self.fetch_progress != self.crate_list.len() {
             to_render = to_render.push(self.fetch_progress());
