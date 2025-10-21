@@ -1,10 +1,14 @@
 // Generated automatically by iced_fontello at build time.
 // Do not edit manually. Source: ../fonts/icons.toml
-// e9bd628ccf279674ed020b121d51bc8c6b86a6f0d9df3fb0e0e47e12ce5e16ae
+// 9a33e771372b330754708d9074f052eab5aaa77cfc7ab847e60f8f2ffb2da17b
+use iced::widget::{text, Text};
 use iced::Font;
-use iced::widget::{Text, text};
 
 pub const FONT: &[u8] = include_bytes!("../fonts/icons.ttf");
+
+pub fn left_arrow<'a>() -> Text<'a> {
+    icon("\u{E00D}")
+}
 
 pub fn refresh<'a>() -> Text<'a> {
     icon("\u{E760}")
