@@ -55,7 +55,7 @@ impl MainWindow {
                     }
                 }
 
-                let icon = if for_removal {
+                let mut icon = if for_removal {
                     if self.delete_crates.contains_key(&crate_item.name) {
                         tick().style(|_| text::Style {
                             color: Color::parse("#F71735"),
@@ -75,11 +75,15 @@ impl MainWindow {
                     })
                 };
 
+                icon = icon.align_x(Alignment::Center);
+
                 let mut icon_button = if for_removal {
                     danger_button(icon)
                 } else {
                     primary_button(icon)
                 };
+
+                icon_button = icon_button.width(40);
 
                 if crate_item.crates_version.is_some() {
                     let crate_name = crate_item.name.clone();
