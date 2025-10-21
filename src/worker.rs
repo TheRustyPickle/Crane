@@ -52,14 +52,37 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                 }
                 FetcherInput::UpdateCrates(crate_list) => {
                     for (index, item) in crate_list.into_iter().enumerate() {
+                        let mut full_command = vec![
+                            String::from("cargo"),
+                            String::from("install"),
+                            item.name.clone(),
+                        ];
+
+                        if item.no_default_features {
+                            full_command.push(String::from("--no-default-features"));
+                        }
+
+                        for feature in item.features {
+                            full_command.push(String::from("--features"));
+                            full_command.push(feature);
+                        }
+
+                        output
+                            .send(FetchEvent::Log(format!(
+                                "Executing: {}",
+                                full_command.join(" ")
+                            )))
+                            .await;
+
+                        full_command.remove(0);
+
                         output
                             .send(FetchEvent::Updating((item.name.clone(), index)))
                             .await;
 
                         let mut command = Command::new("cargo");
                         command
-                            .arg("install")
-                            .arg("ego")
+                            .args(full_command)
                             .stdout(std::process::Stdio::piped())
                             .stderr(std::process::Stdio::piped());
 
@@ -70,14 +93,28 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                 }
                 FetcherInput::DeleteCrates(crate_list) => {
                     for (index, item) in crate_list.into_iter().enumerate() {
+                        let mut full_command = vec![
+                            String::from("cargo"),
+                            String::from("uninstall"),
+                            item.to_string(),
+                        ];
+
+                        output
+                            .send(FetchEvent::Log(format!(
+                                "Executing: {}",
+                                full_command.join(" ")
+                            )))
+                            .await;
+
+                        full_command.remove(0);
+
                         output
                             .send(FetchEvent::Deleting((item.clone(), index)))
                             .await;
 
                         let mut command = Command::new("cargo");
                         command
-                            .arg("install")
-                            .arg("ego")
+                            .args(full_command)
                             .stdout(std::process::Stdio::piped())
                             .stderr(std::process::Stdio::piped());
 
