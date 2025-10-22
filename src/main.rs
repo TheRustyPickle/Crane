@@ -156,8 +156,7 @@ impl MainWindow {
 
             let local_crate = LocalCrate {
                 name: name.to_string(),
-                description: "A very useful Rust utility for all your command-line needs."
-                    .to_string(),
+                description: "This crate has no description".to_string(),
                 version,
                 features: install_info.features,
                 no_default_features: install_info.no_default_features,

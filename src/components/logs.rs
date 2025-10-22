@@ -38,9 +38,9 @@ impl MainWindow {
 
         let logs_container = row![logs, space::horizontal()];
 
-        let scroll_area = container(
-            scrollable(logs_container).direction(scrollable::Direction::Vertical(Scrollbar::new())),
-        )
+        let scroll_area = container(scrollable(logs_container).direction(
+            scrollable::Direction::Vertical(Scrollbar::new().anchor(scrollable::Anchor::End)),
+        ))
         .padding(Padding {
             right: 5.0,
             bottom: 5.0,
