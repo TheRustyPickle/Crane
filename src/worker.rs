@@ -11,10 +11,10 @@ use tokio::process::Command;
 
 use crate::LocalCrate;
 
-pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
+pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
     sipper(async |mut output| {
         let (sender, mut receiver) = mpsc::channel(100);
-        output.send(FetchEvent::Ready(sender)).await;
+        output.send(WorkerEvent::Ready(sender)).await;
 
         loop {
             let Some(event) = receiver.next().await else {
@@ -22,7 +22,7 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
             };
 
             match event {
-                FetcherInput::CrateList(list) => {
+                WorkerInput::CrateList(list) => {
                     let app_version = env!("CARGO_PKG_VERSION");
 
                     let Ok(client) = AsyncClient::new(
@@ -30,7 +30,7 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                         Duration::from_secs(1),
                     ) else {
                         error!("Failed to create client");
-                        output.send(FetchEvent::ReadyFailed).await;
+                        output.send(WorkerEvent::ReadyFailed).await;
                         continue;
                     };
                     for (index, name) in list.into_iter().enumerate() {
@@ -40,7 +40,7 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                         match resp {
                             Ok(details) => {
                                 let _ = output
-                                    .send(FetchEvent::Success((Box::new(details), index)))
+                                    .send(WorkerEvent::Success((Box::new(details), index)))
                                     .await;
                             }
                             Err(e) => {
@@ -48,9 +48,9 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                             }
                         }
                     }
-                    output.send(FetchEvent::DoneCrateCheck).await;
+                    output.send(WorkerEvent::DoneCrateCheck).await;
                 }
-                FetcherInput::UpdateCrates(crate_list) => {
+                WorkerInput::UpdateCrates(crate_list) => {
                     for (index, item) in crate_list.into_iter().enumerate() {
                         let mut full_command = vec![
                             String::from("cargo"),
@@ -62,13 +62,13 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                             full_command.push(String::from("--no-default-features"));
                         }
 
-                        for feature in item.features {
+                        for feature in item.activated_features {
                             full_command.push(String::from("--features"));
                             full_command.push(feature);
                         }
 
                         output
-                            .send(FetchEvent::Log(format!(
+                            .send(WorkerEvent::Log(format!(
                                 "Executing: {}",
                                 full_command.join(" ")
                             )))
@@ -77,7 +77,7 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                         full_command.remove(0);
 
                         output
-                            .send(FetchEvent::Updating((item.name.clone(), index)))
+                            .send(WorkerEvent::Updating((item.name.clone(), index)))
                             .await;
 
                         let mut command = Command::new("cargo");
@@ -89,9 +89,9 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                         run_command(&item.name, command, output.clone()).await;
                     }
 
-                    output.send(FetchEvent::DoneUpdate).await;
+                    output.send(WorkerEvent::DoneUpdate).await;
                 }
-                FetcherInput::DeleteCrates(crate_list) => {
+                WorkerInput::DeleteCrates(crate_list) => {
                     for (index, item) in crate_list.into_iter().enumerate() {
                         let mut full_command = vec![
                             String::from("cargo"),
@@ -100,7 +100,7 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                         ];
 
                         output
-                            .send(FetchEvent::Log(format!(
+                            .send(WorkerEvent::Log(format!(
                                 "Executing: {}",
                                 full_command.join(" ")
                             )))
@@ -109,7 +109,7 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                         full_command.remove(0);
 
                         output
-                            .send(FetchEvent::Deleting((item.clone(), index)))
+                            .send(WorkerEvent::Deleting((item.clone(), index)))
                             .await;
 
                         let mut command = Command::new("cargo");
@@ -121,14 +121,14 @@ pub fn event_worker() -> impl Sipper<Never, FetchEvent> {
                         run_command(&item, command, output.clone()).await;
                     }
 
-                    output.send(FetchEvent::DoneDelete).await;
+                    output.send(WorkerEvent::DoneDelete).await;
                 }
             }
         }
     })
 }
 
-async fn run_command(item_name: &str, mut command: Command, mut output: SSender<FetchEvent>) {
+async fn run_command(item_name: &str, mut command: Command, mut output: SSender<WorkerEvent>) {
     match command.spawn() {
         Ok(mut child) => {
             let stdout = child.stdout.take().unwrap();
@@ -141,7 +141,7 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
 
             let stdout_task = tokio::spawn(async move {
                 while let Ok(Some(line)) = stdout_lines.next_line().await {
-                    output_clone.send(FetchEvent::Log(line)).await
+                    output_clone.send(WorkerEvent::Log(line)).await
                 }
             });
 
@@ -149,7 +149,7 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
 
             let stderr_task = tokio::spawn(async move {
                 while let Ok(Some(line)) = stderr_lines.next_line().await {
-                    output_clone.send(FetchEvent::Log(line)).await
+                    output_clone.send(WorkerEvent::Log(line)).await
                 }
             });
 
@@ -162,11 +162,11 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
             match status {
                 Ok(status) => {
                     let msg = format!("Finished installing {} with status: {}", item_name, status);
-                    output.send(FetchEvent::Log(msg)).await;
+                    output.send(WorkerEvent::Log(msg)).await;
                 }
                 Err(e) => {
                     output
-                        .send(FetchEvent::Log(format!(
+                        .send(WorkerEvent::Log(format!(
                             "Failed to wait on cargo for {}: {e}",
                             item_name
                         )))
@@ -176,7 +176,7 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
         }
         Err(e) => {
             output
-                .send(FetchEvent::Log(format!(
+                .send(WorkerEvent::Log(format!(
                     "Failed to spawn cargo install for {}: {e}",
                     item_name
                 )))
@@ -186,8 +186,8 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
 }
 
 #[derive(Debug, Clone)]
-pub enum FetchEvent {
-    Ready(Sender<FetcherInput>),
+pub enum WorkerEvent {
+    Ready(Sender<WorkerInput>),
     ReadyFailed,
     Success((Box<CrateResponse>, usize)),
     Updating((String, usize)),
@@ -198,7 +198,7 @@ pub enum FetchEvent {
     Log(String),
 }
 
-pub enum FetcherInput {
+pub enum WorkerInput {
     CrateList(Vec<String>),
     UpdateCrates(Vec<LocalCrate>),
     DeleteCrates(Vec<String>),

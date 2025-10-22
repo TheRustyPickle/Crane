@@ -4,8 +4,8 @@ use iced::widget::text::Wrapping;
 use iced::widget::{center, column, container, mouse_area, row, scrollable, space, text};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Shadow, Theme};
 
-use crate::icon::{refresh, tick, trash};
-use crate::utils::{bold, danger_button, primary_button};
+use crate::icon::{github, refresh, tick, trash};
+use crate::utils::{bold, danger_button, primary_button, toggler_button};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
@@ -85,14 +85,62 @@ impl MainWindow {
 
                 icon_button = icon_button.width(40);
 
-                if crate_item.crates_version.is_some() {
+                let mut feature_list = row![].spacing(5);
+
+                let default_active = !crate_item.no_default_features;
+
+                let default_feature = toggler_button(text("default").size(10), default_active)
+                    .on_press(Message::FeatureToggle {
+                        crate_name: crate_item.name.clone(),
+                        feature_name: String::from("default"),
+                    });
+
+                feature_list = feature_list.push(default_feature);
+
+                if let Some(crate_response) = &crate_item.crate_response {
                     let crate_name = crate_item.name.clone();
                     if for_removal {
                         icon_button = icon_button.on_press(Message::DeletePressed(crate_name))
                     } else {
                         icon_button = icon_button.on_press(Message::UpdatePressed(crate_name))
                     }
+
+                    let version_data = &crate_response.versions[0];
+
+                    for feature in version_data.features.keys() {
+                        if feature == "default" {
+                            continue;
+                        }
+
+                        let feature_active = crate_item.activated_features.contains(feature);
+
+                        let feature_button = toggler_button(text(feature).size(10), feature_active)
+                            .on_press(Message::FeatureToggle {
+                                crate_name: crate_item.name.to_string(),
+                                feature_name: feature.to_string(),
+                            });
+                        feature_list = feature_list.push(feature_button);
+                    }
                 }
+
+                let feature_layout = scrollable(
+                    container(feature_list).width(Length::Fill).height(30),
+                )
+                .direction(scrollable::Direction::Horizontal(
+                    Scrollbar::new().width(5).scroller_width(5),
+                ));
+
+                let git_button = container(
+                    toggler_button(
+                        github().size(12).align_x(Alignment::Center),
+                        crate_item.git_link.is_some(),
+                    )
+                    .on_press(Message::ToggleGitLink {
+                        crate_name: crate_item.name.clone(),
+                    })
+                    .width(40),
+                )
+                .align_x(Alignment::End);
 
                 let actions = column![version_text.size(15), icon_button]
                     .spacing(8)
@@ -100,7 +148,10 @@ impl MainWindow {
 
                 let card_content = row![details, actions].spacing(10);
 
-                let card = container(card_content)
+                let card_layout =
+                    column![card_content, row![feature_layout, git_button].spacing(5)].spacing(5);
+
+                let card = container(card_layout)
                     .style(move |theme: &Theme| {
                         let palette = theme.extended_palette();
                         let mut background = palette.background.base.color;
@@ -144,7 +195,7 @@ impl MainWindow {
                             ..Default::default()
                         }
                     })
-                    .padding(10);
+                    .padding(5);
 
                 let mouse_area = mouse_area(card)
                     .on_enter(Message::Hovering(index))
