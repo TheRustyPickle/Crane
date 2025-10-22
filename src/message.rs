@@ -77,12 +77,12 @@ impl MainWindow {
 
                     return Task::perform(
                         async move {
-                            let _ = sender.send(WorkerInput::CrateList(crate_names)).await;
+                            let _ = sender.send(WorkerInput::GetCrateVersion(crate_names)).await;
                         },
                         |()| Message::None,
                     );
                 }
-                WorkerEvent::Success((details, index)) => {
+                WorkerEvent::SuccessCrate((details, index)) => {
                     self.fetch_progress = Some(index + 1);
 
                     let mut progress_status = 0.0;
@@ -118,9 +118,27 @@ impl MainWindow {
 
                     let target_crate = self.crate_list.get_mut(&details.crate_data.name).unwrap();
 
+                    self.delete_crates.remove(&details.crate_data.name);
+
                     target_crate.description = description;
                     target_crate.crates_version = Some(latest_version);
                     target_crate.crate_response = Some(*details);
+                }
+                WorkerEvent::ErrorCrate(index) => {
+                    self.fetch_progress = Some(index + 1);
+
+                    let mut progress_status = 0.0;
+                    let total_item = self.crate_list.len();
+
+                    if let Some(progress) = self.fetch_progress {
+                        progress_status = (progress as f32 / total_item as f32) * 100.0;
+                    }
+
+                    self.lerp_state
+                        .lerp(FETCH_PROGRESS_KEY, progress_status as f64);
+
+                    self.lerp_state
+                        .lerp(FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_HEIGHT);
                 }
                 WorkerEvent::DoneCrateCheck => {
                     self.fetch_progress = None;
@@ -289,7 +307,9 @@ impl MainWindow {
                 }
                 GitInputEvent::Submit => {
                     let target_crate = self.crate_list.get_mut(&self.git_input.crate_name).unwrap();
-                    target_crate.git_link = Some(self.git_input.modal_text.clone());
+                    if !self.git_input.modal_text.is_empty() {
+                        target_crate.git_link = Some(self.git_input.modal_text.clone());
+                    }
 
                     self.git_input.show_modal = false;
                     self.git_input.modal_text = String::new();
@@ -303,6 +323,7 @@ impl MainWindow {
 
                 if target_crate.git_link.is_none() {
                     self.git_input.show_modal = true;
+                    self.git_input.modal_text = String::new();
                     self.git_input.crate_name = crate_name.clone();
 
                     if let Some(crate_response) = &target_crate.crate_response {
