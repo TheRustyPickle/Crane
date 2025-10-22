@@ -1,7 +1,8 @@
 use iced::border::Radius;
 use iced::widget::scrollable::Scrollbar;
 use iced::widget::text::Wrapping;
-use iced::widget::{center, column, container, mouse_area, row, scrollable, space, text};
+use iced::widget::tooltip::Position;
+use iced::widget::{center, column, container, mouse_area, row, scrollable, space, text, tooltip};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Shadow, Theme};
 
 use crate::icon::{github, refresh, tick, trash};
@@ -53,6 +54,8 @@ impl MainWindow {
                     } else if version == &crate_item.version {
                         for_removal = true;
                     }
+                } else {
+                    for_removal = true;
                 }
 
                 let mut icon = if for_removal {
@@ -121,6 +124,9 @@ impl MainWindow {
                             });
                         feature_list = feature_list.push(feature_button);
                     }
+                } else {
+                    icon_button =
+                        icon_button.on_press(Message::DeletePressed(crate_item.name.clone()))
                 }
 
                 let feature_layout = scrollable(
@@ -130,17 +136,39 @@ impl MainWindow {
                     Scrollbar::new().width(5).scroller_width(5),
                 ));
 
-                let git_button = container(
-                    toggler_button(
-                        github().size(12).align_x(Alignment::Center),
-                        crate_item.git_link.is_some(),
+                let git_tooltip_content = if let Some(git_link) = &crate_item.git_link {
+                    text(git_link)
+                } else {
+                    text("Enable to use --git flag and install from a git repository")
+                };
+
+                let git_button = tooltip(
+                    container(
+                        toggler_button(
+                            github().size(12).align_x(Alignment::Center),
+                            crate_item.git_link.is_some(),
+                        )
+                        .on_press(Message::ToggleGitLink {
+                            crate_name: crate_item.name.clone(),
+                        })
+                        .width(40),
                     )
-                    .on_press(Message::ToggleGitLink {
-                        crate_name: crate_item.name.clone(),
-                    })
-                    .width(40),
+                    .align_x(Alignment::End),
+                    git_tooltip_content,
+                    Position::Top,
                 )
-                .align_x(Alignment::End);
+                .style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    container::Style {
+                        background: Some(palette.background.weaker.color.into()),
+                        text_color: Some(palette.background.weak.text),
+                        border: Border {
+                            radius: 8.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                });
 
                 let actions = column![version_text.size(15), icon_button]
                     .spacing(8)
