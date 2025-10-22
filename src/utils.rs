@@ -155,7 +155,7 @@ pub fn parse_git_link(link: &str) -> Option<String> {
     if link.starts_with("(git+") {
         let stripped_text = link.strip_prefix("(git+")?.strip_suffix(")")?;
 
-        let mut commit_location = stripped_text.split("#");
+        let mut commit_location = stripped_text.split('#');
 
         Some(commit_location.next()?.to_string())
     } else {

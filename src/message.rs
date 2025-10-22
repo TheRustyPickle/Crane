@@ -93,7 +93,7 @@ impl MainWindow {
                     }
 
                     self.lerp_state
-                        .lerp(FETCH_PROGRESS_KEY, progress_status as f64);
+                        .lerp(FETCH_PROGRESS_KEY, f64::from(progress_status));
 
                     self.lerp_state
                         .lerp(FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_HEIGHT);
@@ -135,7 +135,7 @@ impl MainWindow {
                     }
 
                     self.lerp_state
-                        .lerp(FETCH_PROGRESS_KEY, progress_status as f64);
+                        .lerp(FETCH_PROGRESS_KEY, f64::from(progress_status));
 
                     self.lerp_state
                         .lerp(FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_HEIGHT);
@@ -161,7 +161,13 @@ impl MainWindow {
                         target_crate.version = target_crate.crates_version.clone().unwrap();
                     }
 
-                    return if !self.delete_crates.is_empty() {
+                    return if self.delete_crates.is_empty() {
+                        self.operation_crate = None;
+                        self.delete_crates.clear();
+                        self.update_crates.clear();
+                        self.update_lerp_states_operation_container();
+                        Task::none()
+                    } else {
                         let crate_list = self.delete_crates.keys().cloned().collect();
 
                         Task::perform(
@@ -170,12 +176,6 @@ impl MainWindow {
                             },
                             |()| Message::None,
                         )
-                    } else {
-                        self.operation_crate = None;
-                        self.delete_crates.clear();
-                        self.update_crates.clear();
-                        self.update_lerp_states_operation_container();
-                        Task::none()
                     };
                 }
                 WorkerEvent::DoneDelete => {

@@ -15,6 +15,7 @@ pub const FETCH_PROGRESS_KEY: &str = "fetch_progress";
 pub const OPERATION_PROGRESS_KEY: &str = "operation_progress";
 
 impl MainWindow {
+    #[must_use]
     pub fn fetch_progress(&self) -> Element<'_, Message> {
         let total_item = self.crate_list.len();
 
@@ -56,6 +57,7 @@ impl MainWindow {
             .into()
     }
 
+    #[must_use]
     pub fn operation_prompt(&self) -> Element<'_, Message> {
         let total_operation = self.delete_crates.len() + self.update_crates.len();
 
@@ -67,7 +69,7 @@ impl MainWindow {
 
             text(operation_text).font(bold())
         } else {
-            let mut operation_text = format!("{} pending operations: ", total_operation);
+            let mut operation_text = format!("{total_operation} pending operations: ");
 
             let mut parts = vec![];
 

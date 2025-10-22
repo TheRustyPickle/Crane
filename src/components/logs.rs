@@ -7,6 +7,7 @@ use crate::utils::{mono, primary_button};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
+    #[must_use]
     pub fn log_page(&self) -> Element<'_, Message> {
         let back_button = container(
             primary_button(

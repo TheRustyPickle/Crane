@@ -103,9 +103,9 @@ impl MainWindow {
                 if let Some(crate_response) = &crate_item.crate_response {
                     let crate_name = crate_item.name.clone();
                     if for_removal {
-                        icon_button = icon_button.on_press(Message::DeletePressed(crate_name))
+                        icon_button = icon_button.on_press(Message::DeletePressed(crate_name));
                     } else {
-                        icon_button = icon_button.on_press(Message::UpdatePressed(crate_name))
+                        icon_button = icon_button.on_press(Message::UpdatePressed(crate_name));
                     }
 
                     let version_data = &crate_response.versions[0];
@@ -126,7 +126,7 @@ impl MainWindow {
                     }
                 } else {
                     icon_button =
-                        icon_button.on_press(Message::DeletePressed(crate_item.name.clone()))
+                        icon_button.on_press(Message::DeletePressed(crate_item.name.clone()));
                 }
 
                 let feature_layout = scrollable(
@@ -187,7 +187,7 @@ impl MainWindow {
                         if let Some(hover_index) = self.hovering
                             && index == hover_index
                         {
-                            background = palette.background.weak.color
+                            background = palette.background.weak.color;
                         }
 
                         container::Style {

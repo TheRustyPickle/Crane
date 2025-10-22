@@ -7,6 +7,7 @@ use crate::utils::{bold, danger_button, primary_button};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
+    #[must_use]
     pub fn git_modal(&self) -> Element<'_, Message> {
         container(
             column![

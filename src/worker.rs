@@ -50,14 +50,14 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
 
                             match resp {
                                 Ok(details) => {
-                                    let _ = output
+                                    output
                                         .send(WorkerEvent::SuccessCrate((Box::new(details), index)))
                                         .await;
                                 }
                                 Err(e) => {
                                     error!("Failed to fetch crate: {e}");
 
-                                    let _ = output.send(WorkerEvent::ErrorCrate(index)).await;
+                                    output.send(WorkerEvent::ErrorCrate(index)).await;
                                 }
                             }
                         }
@@ -149,9 +149,7 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                             let repo = parts[parts.len() - 1];
 
                             let api_url = format!(
-                                "https://api.github.com/repos/{owner}/{repo}/commits?per_page=1",
-                                owner = owner,
-                                repo = repo
+                                "https://api.github.com/repos/{owner}/{repo}/commits?per_page=1"
                             );
 
                             let res = client
@@ -179,7 +177,7 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                                 Err(e) => {
                                     error!("Failed to fetch commit: {e}");
                                 }
-                            };
+                            }
                         }
                     }
                 }
@@ -201,7 +199,7 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
 
             let stdout_task = tokio::spawn(async move {
                 while let Ok(Some(line)) = stdout_lines.next_line().await {
-                    output_clone.send(WorkerEvent::Log(line)).await
+                    output_clone.send(WorkerEvent::Log(line)).await;
                 }
             });
 
@@ -209,7 +207,7 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
 
             let stderr_task = tokio::spawn(async move {
                 while let Ok(Some(line)) = stderr_lines.next_line().await {
-                    output_clone.send(WorkerEvent::Log(line)).await
+                    output_clone.send(WorkerEvent::Log(line)).await;
                 }
             });
 
@@ -221,14 +219,13 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
 
             match status {
                 Ok(status) => {
-                    let msg = format!("Finished installing {} with status: {}", item_name, status);
+                    let msg = format!("Finished installing {item_name} with status: {status}");
                     output.send(WorkerEvent::Log(msg)).await;
                 }
                 Err(e) => {
                     output
                         .send(WorkerEvent::Log(format!(
-                            "Failed to wait on cargo for {}: {e}",
-                            item_name
+                            "Failed to wait on cargo for {item_name}: {e}"
                         )))
                         .await;
                 }
@@ -237,8 +234,7 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
         Err(e) => {
             output
                 .send(WorkerEvent::Log(format!(
-                    "Failed to spawn cargo install for {}: {e}",
-                    item_name
+                    "Failed to spawn cargo install for {item_name}: {e}"
                 )))
                 .await;
         }
