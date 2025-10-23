@@ -3,24 +3,6 @@
 version = 4
 
 [[package]]
-name = "Crane"
-version = "0.1.0"
-dependencies = [
- "crates_io_api",
- "dirs",
- "iced",
- "iced_fontello",
- "log",
- "pretty_env_logger",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "sipper",
- "tokio",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -693,6 +675,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "crane"
+version = "0.1.0"
+dependencies = [
+ "crates_io_api",
+ "dirs",
+ "iced",
+ "iced_fontello",
+ "log",
+ "pretty_env_logger",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sipper",
+ "tokio",
 ]
 
 [[package]]

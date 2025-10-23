@@ -236,6 +236,9 @@ impl MainWindow {
                     self.operation_crate = Some(operation_crate);
                     self.update_lerp_states_operation_progress();
                 }
+                WorkerEvent::ReadyFailed => {
+                    error!("Failed to start client for fetching crates info");
+                }
                 _ => {
                     info!("Received fetch event: {event:?}");
                 }
