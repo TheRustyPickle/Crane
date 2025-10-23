@@ -215,7 +215,7 @@ impl MainWindow {
     }
 
     fn title(&self) -> String {
-        "Main Window".to_string()
+        "Crane".to_string()
     }
 
     fn view(&self) -> Element<'_, Message> {
