@@ -2,6 +2,14 @@
 name = "crane"
 version = "0.1.0"
 edition = "2024"
+authors = ["TheRustyPickle <rusty.pickle94@gmail.com>"]
+readme = "README.md"
+description = """
+On-demand Telegram chat analytic generator
+"""
+homepage = "https://github.com/TheRustyPickle/Crane"
+repository = "https://github.com/TheRustyPickle/Crane"
+license = "MIT"
 
 [dependencies]
 dirs = "6.0.0"
