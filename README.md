@@ -14,6 +14,8 @@ Crane is a simple GUI application built with [Iced](https://github.com/iced-rs/i
 * Remove installed crates
 * View real-time installation logs
 
+https://github.com/user-attachments/assets/96b9758a-01bc-41cc-bb17-23e1ee5d2ded
+
 ## Motivation
 
 I use a number of tools installed through cargo install (like `diesel_cli`, `cargo-nextest`, `cargo-binstall`, and `trunk`) and there’s no simple way to see when updates are available. Crane provides a small, focused interface for that.
