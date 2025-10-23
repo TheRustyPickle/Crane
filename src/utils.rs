@@ -151,6 +151,53 @@ where
     })
 }
 
+pub fn toggler_button_primary<'a, Message>(
+    content: impl Into<iced::Element<'a, Message>> + 'a,
+    active: bool,
+) -> Button<'a, Message, Theme>
+where
+    Message: Clone + 'a,
+{
+    button(content).style(move |theme: &Theme, status| {
+        let palette = theme.extended_palette();
+
+        let mut style = button::Style {
+            border: Border {
+                radius: 8.into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let base_color = if active {
+            palette.primary.strong.color
+        } else {
+            palette.background.stronger.color
+        };
+
+        style.background = Some(match status {
+            Status::Active => base_color.into(),
+            Status::Hovered => {
+                if active {
+                    palette.primary.weak.color.into()
+                } else {
+                    palette.background.base.color.into()
+                }
+            }
+            Status::Pressed => {
+                if active {
+                    palette.primary.base.color.into()
+                } else {
+                    palette.background.strong.color.into()
+                }
+            }
+            Status::Disabled => palette.background.strongest.color.into(),
+        });
+
+        style
+    })
+}
+
 pub fn parse_git_link(link: &str) -> Option<String> {
     if link.starts_with("(git+") {
         let stripped_text = link.strip_prefix("(git+")?.strip_suffix(")")?;

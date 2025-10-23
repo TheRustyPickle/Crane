@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use iced::border::Radius;
 use iced::widget::scrollable::Scrollbar;
 use iced::widget::text::Wrapping;
@@ -5,13 +7,14 @@ use iced::widget::tooltip::Position;
 use iced::widget::{center, column, container, mouse_area, row, scrollable, space, text, tooltip};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Shadow, Theme};
 
-use crate::icon::{github, refresh, tick, trash};
-use crate::utils::{bold, danger_button, primary_button, toggler_button};
+use crate::icon::{github, lock, refresh, tick, trash};
+use crate::utils::{bold, danger_button, primary_button, toggler_button, toggler_button_primary};
 use crate::{MainWindow, Message};
 
 impl MainWindow {
     #[must_use]
     pub fn crate_items(&self) -> Element<'_, Message> {
+        // Don't enable update all button until fetching completes
         let mut select_all_button =
             primary_button(text("Update All").font(bold()).style(|_| text::Style {
                 color: Some(Color::WHITE),
@@ -58,24 +61,20 @@ impl MainWindow {
                     for_removal = true;
                 }
 
+                if crate_item.locked {
+                    for_removal = true;
+                }
+
                 let mut icon = if for_removal {
                     if self.delete_crates.contains_key(&crate_item.name) {
-                        tick().style(|_| text::Style {
-                            color: Color::parse("#F71735"),
-                        })
+                        tick().color(Color::parse("#F71735").unwrap())
                     } else {
-                        trash().style(|_| text::Style {
-                            color: Color::parse("#F71735"),
-                        })
+                        trash().color(Color::parse("#F71735").unwrap())
                     }
                 } else if self.update_crates.contains_key(&crate_item.name) {
-                    tick().style(|_| text::Style {
-                        color: Some(Color::WHITE),
-                    })
+                    tick().color(Color::WHITE)
                 } else {
-                    refresh().style(|_| text::Style {
-                        color: Some(Color::WHITE),
-                    })
+                    refresh().color(Color::WHITE)
                 };
 
                 icon = icon.align_x(Alignment::Center);
@@ -88,8 +87,26 @@ impl MainWindow {
 
                 icon_button = icon_button.width(40);
 
+                let crate_name = crate_item.name.clone();
+                if for_removal {
+                    icon_button = icon_button.on_press(Message::DeletePressed(crate_name));
+                } else {
+                    icon_button = icon_button.on_press(Message::UpdatePressed(crate_name));
+                }
+
+                let mut lock_icon = lock();
+                if crate_item.locked {
+                    lock_icon = lock_icon.color(Color::WHITE)
+                } else {
+                    lock_icon = lock_icon.color(Color::BLACK)
+                }
+
+                let lock_button = toggler_button_primary(lock_icon, crate_item.locked)
+                    .on_press(Message::ToggleLock(crate_item.name.clone()));
+
                 let mut feature_list = row![].spacing(5);
 
+                // Add the default feature at the start of the row
                 let default_active = !crate_item.no_default_features;
 
                 let default_feature = toggler_button(text("default").size(10), default_active)
@@ -100,17 +117,31 @@ impl MainWindow {
 
                 feature_list = feature_list.push(default_feature);
 
+                // If crate response is found, list the features gotten from crates.io.
+                // If not, if any cached feature list is found, use that.
                 if let Some(crate_response) = &crate_item.crate_response {
-                    let crate_name = crate_item.name.clone();
-                    if for_removal {
-                        icon_button = icon_button.on_press(Message::DeletePressed(crate_name));
-                    } else {
-                        icon_button = icon_button.on_press(Message::UpdatePressed(crate_name));
-                    }
-
                     let version_data = &crate_response.versions[0];
 
-                    for feature in version_data.features.keys() {
+                    let sorted_features: BTreeSet<String> =
+                        version_data.features.keys().cloned().collect();
+
+                    for feature in sorted_features {
+                        if feature == "default" {
+                            continue;
+                        }
+
+                        let feature_active = crate_item.activated_features.contains(&feature);
+
+                        let feature_button =
+                            toggler_button(text(feature.clone()).size(10), feature_active)
+                                .on_press(Message::FeatureToggle {
+                                    crate_name: crate_item.name.to_string(),
+                                    feature_name: feature.to_string(),
+                                });
+                        feature_list = feature_list.push(feature_button);
+                    }
+                } else {
+                    for feature in &crate_item.cached_features {
                         if feature == "default" {
                             continue;
                         }
@@ -124,9 +155,6 @@ impl MainWindow {
                             });
                         feature_list = feature_list.push(feature_button);
                     }
-                } else {
-                    icon_button =
-                        icon_button.on_press(Message::DeletePressed(crate_item.name.clone()));
                 }
 
                 let feature_layout = scrollable(
@@ -170,9 +198,12 @@ impl MainWindow {
                     }
                 });
 
-                let actions = column![version_text.size(15), icon_button]
-                    .spacing(8)
-                    .align_x(Alignment::End);
+                let actions = column![
+                    version_text.size(15),
+                    row![icon_button, lock_button].spacing(5)
+                ]
+                .spacing(8)
+                .align_x(Alignment::End);
 
                 let card_content = row![details, actions].spacing(10);
 

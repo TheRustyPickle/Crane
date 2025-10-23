@@ -33,12 +33,12 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
 
             tokio::spawn(async move {
                 match event {
-                    WorkerInput::GetCrateVersion(list) => {
+                    WorkerInput::GetCrateVersion(list, rate_limit) => {
                         let app_version = env!("CARGO_PKG_VERSION");
 
                         let Ok(client) = AsyncClient::new(
                             &format!("Crane/{app_version} (rusty.pickle94@gmail.com)"),
-                            Duration::from_secs(1),
+                            Duration::from_millis(rate_limit),
                         ) else {
                             error!("Failed to create client");
                             output.send(WorkerEvent::ReadyFailed).await;
@@ -257,7 +257,7 @@ pub enum WorkerEvent {
 }
 
 pub enum WorkerInput {
-    GetCrateVersion(Vec<String>),
+    GetCrateVersion(Vec<String>, u64),
     GetGitCommit(HashMap<String, String>),
     UpdateCrates(Vec<LocalCrate>),
     DeleteCrates(Vec<String>),

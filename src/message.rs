@@ -41,6 +41,7 @@ pub enum Message {
     ToggleGitLink {
         crate_name: String,
     },
+    ToggleLock(String),
     GitInput(GitInputEvent),
     None,
 }
@@ -75,9 +76,17 @@ impl MainWindow {
                     self.worker = Some(sender.clone());
                     let crate_names = self.crate_list.keys().cloned().collect();
 
+                    let rate_limit = self
+                        .config
+                        .as_ref()
+                        .map(|c| c.crate_rate_limit_ms)
+                        .unwrap_or(1000);
+
                     return Task::perform(
                         async move {
-                            let _ = sender.send(WorkerInput::GetCrateVersion(crate_names)).await;
+                            let _ = sender
+                                .send(WorkerInput::GetCrateVersion(crate_names, rate_limit))
+                                .await;
                         },
                         |()| Message::None,
                     );
@@ -119,6 +128,18 @@ impl MainWindow {
                     let target_crate = self.crate_list.get_mut(&details.crate_data.name).unwrap();
 
                     self.delete_crates.remove(&details.crate_data.name);
+
+                    if let Some(config) = &mut self.config {
+                        let version_data = &details.versions[0];
+                        let feature_list = version_data.features.keys().cloned().collect();
+
+                        config.update_cache(
+                            details.crate_data.name.clone(),
+                            description.clone(),
+                            feature_list,
+                            latest_version.to_string(),
+                        )
+                    }
 
                     target_crate.description = description;
                     target_crate.crates_version = Some(latest_version);
@@ -278,6 +299,10 @@ impl MainWindow {
             }
             Message::UpdateAll => {
                 for item in self.crate_list.values() {
+                    if item.locked {
+                        continue;
+                    }
+
                     if let Some(crate_version) = item.crates_version.as_ref()
                         && crate_version > &item.version
                     {
@@ -335,6 +360,18 @@ impl MainWindow {
                     }
                 } else {
                     target_crate.git_link = None;
+                }
+            }
+            Message::ToggleLock(crate_name) => {
+                let target_crate = self.crate_list.get_mut(&crate_name).unwrap();
+
+                target_crate.locked = !target_crate.locked;
+
+                self.update_crates.remove(&crate_name);
+                self.delete_crates.remove(&crate_name);
+
+                if let Some(config) = &mut self.config {
+                    config.update_lock(crate_name, target_crate.locked);
                 }
             }
         }

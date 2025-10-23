@@ -1,4 +1,5 @@
 mod components;
+mod config;
 mod icon;
 mod lerp;
 mod message;
@@ -13,12 +14,13 @@ use iced::{Element, Subscription, Theme, time};
 use log::{LevelFilter, error, info};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::File;
 use std::io::Read as _;
 use std::time::Duration;
 
 use crate::components::{OPERATION_CONTAINER, OPERATION_CONTAINER_KEY, OPERATION_PROGRESS_KEY};
+use crate::config::Config;
 use crate::lerp::LerpState;
 use crate::message::{GitInputEvent, GitInputState, Message};
 use crate::utils::{modal, parse_git_link};
@@ -51,6 +53,7 @@ pub struct MainWindow {
     operation_crate: Option<OperationCrate>,
     logs: Vec<String>,
     git_input: GitInputState,
+    config: Option<Config>,
 }
 
 pub struct OperationCrate {
@@ -97,7 +100,9 @@ pub struct LocalCrate {
     version: Version,
     crates_version: Option<Version>,
     crate_response: Option<CrateResponse>,
+    cached_features: BTreeSet<String>,
     git_link: Option<String>,
+    locked: bool,
 }
 
 impl MainWindow {
@@ -122,6 +127,8 @@ impl MainWindow {
 
         let mut crate_list = BTreeMap::new();
 
+        let config = Config::get_or_new();
+
         for (name, install_info) in crate_file.installs {
             let split_name = name.split(' ').collect::<Vec<&str>>();
             if split_name.len() != 3 {
@@ -132,7 +139,6 @@ impl MainWindow {
             let name = split_name[0];
             let version = split_name[1];
 
-            // TODO:: Determine whether it was installed with git flag
             let source = split_name[2];
 
             let git_link = parse_git_link(source);
@@ -142,15 +148,35 @@ impl MainWindow {
                 continue;
             };
 
+            let mut crates_version = None;
+            let mut cached_features = BTreeSet::new();
+            let mut description = "This crate has no description".to_string();
+            let mut locked = false;
+
+            if let Some(config) = &config
+                && let Some(crate_info) = config.crate_cache.get(name)
+            {
+                if let Some(version_string) = &crate_info.crate_version {
+                    let version = Version::parse(version_string).unwrap();
+                    crates_version = Some(version);
+                }
+
+                cached_features = crate_info.features.clone();
+                description = crate_info.description.clone();
+                locked = crate_info.locked;
+            }
+
             let local_crate = LocalCrate {
                 name: name.to_string(),
-                description: "This crate has no description".to_string(),
+                description,
                 version,
                 activated_features: install_info.features.into_iter().collect(),
                 no_default_features: install_info.no_default_features,
-                crates_version: None,
+                crates_version,
                 crate_response: None,
+                cached_features,
                 git_link,
+                locked,
             };
 
             crate_list.insert(name.to_string(), local_crate);
@@ -172,6 +198,7 @@ impl MainWindow {
             operation_crate: None,
             logs: Vec::new(),
             git_input: GitInputState::default(),
+            config,
         }
     }
 

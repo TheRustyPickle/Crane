@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    crate_rate_limit_ms: u64,
+    pub crate_rate_limit_ms: u64,
     pub crate_cache: HashMap<String, CrateCache>,
     #[serde(skip)]
     location: PathBuf,
