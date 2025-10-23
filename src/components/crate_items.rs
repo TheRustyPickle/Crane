@@ -1,11 +1,10 @@
-use std::collections::BTreeSet;
-
 use iced::border::Radius;
 use iced::widget::scrollable::Scrollbar;
 use iced::widget::text::Wrapping;
 use iced::widget::tooltip::Position;
 use iced::widget::{center, column, container, mouse_area, row, scrollable, space, text, tooltip};
 use iced::{Alignment, Border, Color, Element, Length, Padding, Shadow, Theme};
+use std::collections::BTreeSet;
 
 use crate::icon::{github, lock, refresh, tick, trash};
 use crate::utils::{bold, danger_button, primary_button, toggler_button, toggler_button_primary};

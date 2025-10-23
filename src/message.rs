@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use iced::Task;
 use iced::futures::SinkExt;
 use log::{error, info};
 use semver::Version;
+use std::collections::HashMap;
 
 use crate::components::{FETCH_PROGRESS_HEIGHT, FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_KEY};
 use crate::worker::{WorkerEvent, WorkerInput};
@@ -185,6 +184,15 @@ impl MainWindow {
                     }
                 }
                 WorkerEvent::DoneUpdate => {
+                    if let Some(name) = &self.operation_crate {
+                        let target_crate = self.crate_list.get_mut(&name.name).unwrap();
+                        target_crate.version = target_crate.crates_version.clone().unwrap();
+
+                        if let Some(hash) = &target_crate.latest_hash {
+                            target_crate.local_hash = Some(hash.clone());
+                        }
+                    }
+
                     let Some(mut worker) = self.worker.clone() else {
                         return Task::none();
                     };
@@ -193,6 +201,8 @@ impl MainWindow {
                         let target_crate = self.crate_list.get_mut(&name.name).unwrap();
                         target_crate.version = target_crate.crates_version.clone().unwrap();
                     }
+
+                    self.operation_crate = None;
 
                     return if self.delete_crates.is_empty() {
                         self.operation_crate = None;
@@ -225,6 +235,10 @@ impl MainWindow {
                     if let Some(name) = &self.operation_crate {
                         let target_crate = self.crate_list.get_mut(&name.name).unwrap();
                         target_crate.version = target_crate.crates_version.clone().unwrap();
+
+                        if let Some(hash) = &target_crate.latest_hash {
+                            target_crate.local_hash = Some(hash.clone());
+                        }
                     }
 
                     let operation_crate = OperationCrate {
