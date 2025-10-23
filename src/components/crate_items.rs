@@ -48,18 +48,50 @@ impl MainWindow {
 
                 let mut for_removal = false;
 
-                let mut version_text = text(format!("v{}", crate_item.version)).font(bold());
+                let mut version_text_string = format!("v{}", crate_item.version);
 
-                if let Some(version) = &crate_item.crates_version {
+                if crate_item.git_link.is_some() {
+                    if let Some(local_hash) = &crate_item.local_hash
+                        && let Some(latest_hash) = &crate_item.latest_hash
+                    {
+                        let short_local = &local_hash[..local_hash.len().min(5)];
+                        let short_latest = &latest_hash[..latest_hash.len().min(5)];
+
+                        if local_hash != latest_hash {
+                            version_text_string = format!(
+                                "v{} ({} → {})",
+                                crate_item.version, short_local, short_latest
+                            );
+                        } else {
+                            version_text_string =
+                                format!("v{} ({})", crate_item.version, short_local);
+                            for_removal = true;
+                        }
+                    } else if let Some(local_hash) = &crate_item.local_hash
+                        && crate_item.latest_hash.is_none()
+                    {
+                        let short_local = &local_hash[..local_hash.len().min(5)];
+
+                        version_text_string = format!("v{} ({})", crate_item.version, short_local);
+                        for_removal = true;
+                    } else if let Some(latest_hash) = &crate_item.latest_hash
+                        && crate_item.local_hash.is_none()
+                    {
+                        let latest_local = &latest_hash[..latest_hash.len().min(5)];
+
+                        version_text_string = format!("v{} → {}", crate_item.version, latest_local);
+                    }
+                } else if let Some(version) = &crate_item.crates_version {
                     if version > &crate_item.version {
-                        version_text =
-                            text(format!("v{} → v{}", crate_item.version, version)).font(bold());
+                        version_text_string = format!("v{} → v{}", crate_item.version, version);
                     } else if version == &crate_item.version {
                         for_removal = true;
                     }
                 } else {
                     for_removal = true;
                 }
+
+                let version_text = text(version_text_string).font(bold());
 
                 if crate_item.locked {
                     for_removal = true;

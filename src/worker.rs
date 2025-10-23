@@ -65,11 +65,14 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                     }
                     WorkerInput::UpdateCrates(crate_list) => {
                         for (index, item) in crate_list.into_iter().enumerate() {
-                            let mut full_command = vec![
-                                String::from("cargo"),
-                                String::from("install"),
-                                item.name.clone(),
-                            ];
+                            let mut full_command =
+                                vec![String::from("cargo"), String::from("install")];
+
+                            if let Some(git) = item.git_link {
+                                full_command.push(String::from("--git"));
+                                full_command.push(git);
+                                full_command.push(item.name.clone());
+                            }
 
                             if item.no_default_features {
                                 full_command.push(String::from("--no-default-features"));

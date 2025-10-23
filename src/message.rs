@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iced::Task;
 use iced::futures::SinkExt;
 use log::{error, info};
@@ -82,11 +84,21 @@ impl MainWindow {
                         .map(|c| c.crate_rate_limit_ms)
                         .unwrap_or(1000);
 
+                    let mut git_crate_list = HashMap::new();
+
+                    for crate_details in self.crate_list.values() {
+                        if let Some(git_url) = &crate_details.git_link {
+                            git_crate_list.insert(crate_details.name.clone(), git_url.clone());
+                        }
+                    }
+
                     return Task::perform(
                         async move {
                             let _ = sender
                                 .send(WorkerInput::GetCrateVersion(crate_names, rate_limit))
                                 .await;
+
+                            let _ = sender.send(WorkerInput::GetGitCommit(git_crate_list)).await;
                         },
                         |()| Message::None,
                     );
@@ -239,8 +251,12 @@ impl MainWindow {
                 WorkerEvent::ReadyFailed => {
                     error!("Failed to start client for fetching crates info");
                 }
-                _ => {
-                    info!("Received fetch event: {event:?}");
+                WorkerEvent::SuccessGitCommit { crate_name, commit } => {
+                    info!("Successfully gotten commit {commit} for {crate_name}");
+
+                    let target_crate = self.crate_list.get_mut(&crate_name).unwrap();
+
+                    target_crate.latest_hash = Some(commit);
                 }
             },
             Message::Hovering(index) => {
@@ -335,12 +351,33 @@ impl MainWindow {
                 }
                 GitInputEvent::Submit => {
                     let target_crate = self.crate_list.get_mut(&self.git_input.crate_name).unwrap();
-                    if !self.git_input.modal_text.is_empty() {
-                        target_crate.git_link = Some(self.git_input.modal_text.clone());
-                    }
 
                     self.git_input.show_modal = false;
-                    self.git_input.modal_text = String::new();
+
+                    if !self.git_input.modal_text.is_empty() {
+                        target_crate.git_link = Some(self.git_input.modal_text.clone());
+
+                        let Some(mut worker) = self.worker.clone() else {
+                            return Task::none();
+                        };
+
+                        // No fetching the hash for the same crate twice
+                        if target_crate.latest_hash.is_some() {
+                            return Task::none();
+                        }
+
+                        let to_send = HashMap::from([(
+                            target_crate.name.clone(),
+                            self.git_input.modal_text.clone(),
+                        )]);
+
+                        return Task::perform(
+                            async move {
+                                let _ = worker.send(WorkerInput::GetGitCommit(to_send)).await;
+                            },
+                            |()| Message::None,
+                        );
+                    }
                 }
                 GitInputEvent::Input(text) => {
                     self.git_input.modal_text = text;

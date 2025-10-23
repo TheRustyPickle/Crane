@@ -103,6 +103,8 @@ pub struct LocalCrate {
     cached_features: BTreeSet<String>,
     git_link: Option<String>,
     locked: bool,
+    local_hash: Option<String>,
+    latest_hash: Option<String>,
 }
 
 impl MainWindow {
@@ -141,7 +143,7 @@ impl MainWindow {
 
             let source = split_name[2];
 
-            let git_link = parse_git_link(source);
+            let parsed_info = parse_git_link(source);
 
             let Ok(version) = Version::parse(version) else {
                 error!("Failed to parse version {version} for crate {name}. Skipping");
@@ -152,6 +154,14 @@ impl MainWindow {
             let mut cached_features = BTreeSet::new();
             let mut description = "This crate has no description".to_string();
             let mut locked = false;
+
+            let mut local_hash = None;
+            let mut git_link = None;
+
+            if let Some((link, hash)) = parsed_info {
+                local_hash = Some(hash);
+                git_link = Some(link);
+            }
 
             if let Some(config) = &config
                 && let Some(crate_info) = config.crate_cache.get(name)
@@ -176,6 +186,8 @@ impl MainWindow {
                 crate_response: None,
                 cached_features,
                 git_link,
+                local_hash,
+                latest_hash: None,
                 locked,
             };
 

@@ -198,13 +198,13 @@ where
     })
 }
 
-pub fn parse_git_link(link: &str) -> Option<String> {
+pub fn parse_git_link(link: &str) -> Option<(String, String)> {
     if link.starts_with("(git+") {
         let stripped_text = link.strip_prefix("(git+")?.strip_suffix(")")?;
 
-        let mut commit_location = stripped_text.split('#');
-
-        Some(commit_location.next()?.to_string())
+        stripped_text
+            .split_once('#')
+            .map(|(a, b)| (a.to_string(), b.to_string()))
     } else {
         None
     }
