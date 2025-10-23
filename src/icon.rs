@@ -1,8 +1,8 @@
 // Generated automatically by iced_fontello at build time.
 // Do not edit manually. Source: ../fonts/icons.toml
-// 244f4a7eb0319f009cc94857a20f10eaa01a0c6690f3c452871d6bcc01ec5ed8
+// a40fdeaf3c83da394db1b15a33c72a8d94791088d09236e285cd6680514b96e7
+use iced::widget::{text, Text};
 use iced::Font;
-use iced::widget::{Text, text};
 
 pub const FONT: &[u8] = include_bytes!("../fonts/icons.ttf");
 
@@ -12,6 +12,10 @@ pub fn github<'a>() -> Text<'a> {
 
 pub fn left_arrow<'a>() -> Text<'a> {
     icon("\u{E00D}")
+}
+
+pub fn lock<'a>() -> Text<'a> {
+    icon("\u{E096}")
 }
 
 pub fn refresh<'a>() -> Text<'a> {
