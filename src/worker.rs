@@ -72,6 +72,8 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                                 full_command.push(String::from("--git"));
                                 full_command.push(git);
                                 full_command.push(item.name.clone());
+                            } else {
+                                full_command.push(item.name.clone());
                             }
 
                             if item.no_default_features {
