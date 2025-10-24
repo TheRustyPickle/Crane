@@ -4,7 +4,10 @@ use log::{error, info};
 use semver::Version;
 use std::collections::HashMap;
 
-use crate::components::{FETCH_PROGRESS_HEIGHT, FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_KEY};
+use crate::components::{
+    FETCH_PROGRESS_HEIGHT, FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_KEY, GIT_MODAL_WIDTH,
+    GIT_MODAL_WIDTH_KEY,
+};
 use crate::worker::{WorkerEvent, WorkerInput};
 use crate::{MainWindow, OperationCrate, OperationType, Page};
 
@@ -266,7 +269,7 @@ impl MainWindow {
                     error!("Failed to start client for fetching crates info");
                 }
                 WorkerEvent::SuccessGitCommit { crate_name, commit } => {
-                    info!("Successfully gotten commit {commit} for {crate_name}");
+                    info!("Got commit hash {commit} for {crate_name}");
 
                     let target_crate = self.crate_list.get_mut(&crate_name).unwrap();
 
@@ -340,6 +343,19 @@ impl MainWindow {
                         && crate_version > &item.version
                     {
                         self.update_crates.insert(item.name.clone(), item.clone());
+                        continue;
+                    }
+
+                    if let Some(git_hash) = item.latest_hash.as_ref()
+                        && let Some(local_hash) = item.local_hash.as_ref()
+                        && git_hash != local_hash
+                    {
+                        self.update_crates.insert(item.name.clone(), item.clone());
+                        continue;
+                    }
+
+                    if item.latest_hash.is_some() && item.local_hash.is_none() {
+                        self.update_crates.insert(item.name.clone(), item.clone());
                     }
                 }
                 self.update_lerp_states_operation_container();
@@ -362,11 +378,16 @@ impl MainWindow {
             Message::GitInput(event) => match event {
                 GitInputEvent::HideModal => {
                     self.git_input.show_modal = false;
+                    self.lerp_state.lerp(GIT_MODAL_WIDTH_KEY, 0.0);
                 }
                 GitInputEvent::Submit => {
                     let target_crate = self.crate_list.get_mut(&self.git_input.crate_name).unwrap();
 
                     self.git_input.show_modal = false;
+                    self.lerp_state.lerp(GIT_MODAL_WIDTH_KEY, 0.0);
+
+                    self.update_crates.remove(&self.git_input.crate_name);
+                    self.delete_crates.remove(&self.git_input.crate_name);
 
                     if !self.git_input.modal_text.is_empty() {
                         target_crate.git_link = Some(self.git_input.modal_text.clone());
@@ -412,8 +433,12 @@ impl MainWindow {
                             self.git_input.modal_text = repo.to_string();
                         }
                     }
+
+                    self.lerp_state.lerp(GIT_MODAL_WIDTH_KEY, GIT_MODAL_WIDTH);
                 } else {
                     target_crate.git_link = None;
+                    self.update_crates.remove(&crate_name);
+                    self.delete_crates.remove(&crate_name);
                 }
             }
             Message::ToggleLock(crate_name) => {
