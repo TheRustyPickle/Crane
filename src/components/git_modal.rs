@@ -6,9 +6,14 @@ use crate::message::GitInputEvent;
 use crate::utils::{bold, danger_button, primary_button};
 use crate::{MainWindow, Message};
 
+pub const GIT_MODAL_WIDTH: f64 = 500.0;
+pub const GIT_MODAL_WIDTH_KEY: &str = "git_modal_width";
+
 impl MainWindow {
     #[must_use]
     pub fn git_modal(&self) -> Element<'_, Message> {
+        let modal_width = self.lerp_state.get(GIT_MODAL_WIDTH_KEY).unwrap_or_default() as u32;
+
         container(
             column![
                 column![
@@ -86,7 +91,8 @@ impl MainWindow {
             ]
             .spacing(20),
         )
-        .width(500)
+        .width(modal_width)
+        .height(modal_width / 4)
         .padding(10)
         .style(|theme: &Theme| {
             let palette = theme.extended_palette();
