@@ -1,6 +1,6 @@
 // Generated automatically by iced_fontello at build time.
 // Do not edit manually. Source: ../fonts/icons.toml
-// a40fdeaf3c83da394db1b15a33c72a8d94791088d09236e285cd6680514b96e7
+// 9b157dfbe31ea87e12a0c1bc1b85febe4150d2e873a186d1d80d8ea205cd1872
 use iced::Font;
 use iced::widget::{Text, text};
 
@@ -16,6 +16,10 @@ pub fn left_arrow<'a>() -> Text<'a> {
 
 pub fn lock<'a>() -> Text<'a> {
     icon("\u{E096}")
+}
+
+pub fn pin<'a>() -> Text<'a> {
+    icon("\u{E0BA}")
 }
 
 pub fn refresh<'a>() -> Text<'a> {
