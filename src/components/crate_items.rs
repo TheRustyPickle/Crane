@@ -6,7 +6,7 @@ use iced::widget::{center, column, container, mouse_area, row, scrollable, space
 use iced::{Alignment, Border, Color, Element, Length, Padding, Shadow, Theme};
 use std::collections::BTreeSet;
 
-use crate::icon::{github, lock, refresh, tick, trash};
+use crate::icon::{github, lock, pin, refresh, tick, trash};
 use crate::utils::{bold, danger_button, primary_button, toggler_button, toggler_button_primary};
 use crate::{MainWindow, Message};
 
@@ -92,7 +92,7 @@ impl MainWindow {
 
                 let version_text = text(version_text_string).font(bold());
 
-                if crate_item.locked {
+                if crate_item.pinned {
                     for_removal = true;
                 }
 
@@ -125,15 +125,15 @@ impl MainWindow {
                     icon_button = icon_button.on_press(Message::UpdatePressed(crate_name));
                 }
 
-                let mut lock_icon = lock();
-                if crate_item.locked {
-                    lock_icon = lock_icon.color(Color::WHITE)
+                let mut pin_icon = pin();
+                if crate_item.pinned {
+                    pin_icon = pin_icon.color(Color::WHITE)
                 } else {
-                    lock_icon = lock_icon.color(Color::BLACK)
+                    pin_icon = pin_icon.color(Color::BLACK)
                 }
 
-                let lock_button = toggler_button_primary(lock_icon, crate_item.locked)
-                    .on_press(Message::ToggleLock(crate_item.name.clone()));
+                let pin_button = toggler_button_primary(pin_icon, crate_item.pinned)
+                    .on_press(Message::TogglePin(crate_item.name.clone()));
 
                 let mut feature_list = row![].spacing(5);
 
@@ -229,17 +229,45 @@ impl MainWindow {
                     }
                 });
 
+                let locked_button = tooltip(
+                    container(
+                        toggler_button(
+                            lock().size(12).align_x(Alignment::Center),
+                            crate_item.locked,
+                        )
+                        .on_press(Message::ToggleLocked(crate_item.name.clone())),
+                    )
+                    .align_x(Alignment::End),
+                    "Whether to use --locked flag when installing",
+                    Position::Top,
+                )
+                .style(|theme: &Theme| {
+                    let palette = theme.extended_palette();
+                    container::Style {
+                        background: Some(palette.background.weaker.color.into()),
+                        text_color: Some(palette.background.weak.text),
+                        border: Border {
+                            radius: 8.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                });
+
                 let actions = column![
                     version_text.size(15),
-                    row![icon_button, lock_button].spacing(5)
+                    row![icon_button, pin_button].spacing(5)
                 ]
                 .spacing(8)
                 .align_x(Alignment::End);
 
                 let card_content = row![details, actions].spacing(10);
 
-                let card_layout =
-                    column![card_content, row![feature_layout, git_button].spacing(5)].spacing(5);
+                let card_layout = column![
+                    card_content,
+                    row![feature_layout, git_button, locked_button].spacing(5)
+                ]
+                .spacing(5);
 
                 let card = container(card_layout)
                     .style(move |theme: &Theme| {

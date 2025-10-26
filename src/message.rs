@@ -45,7 +45,8 @@ pub enum Message {
     ToggleGitLink {
         crate_name: String,
     },
-    ToggleLock(String),
+    TogglePin(String),
+    ToggleLocked(String),
     GitInput(GitInputEvent),
     None,
 }
@@ -335,7 +336,7 @@ impl MainWindow {
             }
             Message::UpdateAll => {
                 for item in self.crate_list.values() {
-                    if item.locked {
+                    if item.pinned {
                         continue;
                     }
 
@@ -441,16 +442,26 @@ impl MainWindow {
                     self.delete_crates.remove(&crate_name);
                 }
             }
-            Message::ToggleLock(crate_name) => {
+            Message::TogglePin(crate_name) => {
                 let target_crate = self.crate_list.get_mut(&crate_name).unwrap();
 
-                target_crate.locked = !target_crate.locked;
+                target_crate.pinned = !target_crate.pinned;
 
                 self.update_crates.remove(&crate_name);
                 self.delete_crates.remove(&crate_name);
 
                 if let Some(config) = &mut self.config {
-                    config.update_lock(crate_name, target_crate.locked);
+                    config.update_pinned(crate_name, target_crate.pinned);
+                }
+            }
+
+            Message::ToggleLocked(crate_name) => {
+                let target_crate = self.crate_list.get_mut(&crate_name).unwrap();
+
+                target_crate.locked = !target_crate.locked;
+
+                if let Some(config) = &mut self.config {
+                    config.update_locked(crate_name, target_crate.locked);
                 }
             }
         }

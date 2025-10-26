@@ -102,9 +102,10 @@ pub struct LocalCrate {
     crate_response: Option<CrateResponse>,
     cached_features: BTreeSet<String>,
     git_link: Option<String>,
-    locked: bool,
+    pinned: bool,
     local_hash: Option<String>,
     latest_hash: Option<String>,
+    locked: bool,
 }
 
 impl MainWindow {
@@ -153,6 +154,7 @@ impl MainWindow {
             let mut crates_version = None;
             let mut cached_features = BTreeSet::new();
             let mut description = "This crate has no description".to_string();
+            let mut pinned = false;
             let mut locked = false;
 
             let mut local_hash = None;
@@ -173,6 +175,7 @@ impl MainWindow {
 
                 cached_features = crate_info.features.clone();
                 description = crate_info.description.clone();
+                pinned = crate_info.pinned;
                 locked = crate_info.locked;
             }
 
@@ -188,6 +191,7 @@ impl MainWindow {
                 git_link,
                 local_hash,
                 latest_hash: None,
+                pinned,
                 locked,
             };
 

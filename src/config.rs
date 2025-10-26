@@ -17,6 +17,7 @@ pub struct CrateCache {
     pub description: String,
     pub features: BTreeSet<String>,
     pub crate_version: Option<String>,
+    pub pinned: bool,
     pub locked: bool,
 }
 
@@ -72,7 +73,14 @@ impl Config {
         self.save()
     }
 
-    pub fn update_lock(&mut self, crate_name: String, locked: bool) {
+    pub fn update_pinned(&mut self, crate_name: String, pinned: bool) {
+        let target_crate = self.crate_cache.entry(crate_name).or_default();
+        target_crate.pinned = pinned;
+
+        self.save()
+    }
+
+    pub fn update_locked(&mut self, crate_name: String, locked: bool) {
         let target_crate = self.crate_cache.entry(crate_name).or_default();
         target_crate.locked = locked;
 
