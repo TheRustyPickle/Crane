@@ -678,8 +678,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "crane"
-version = "0.1.0"
+name = "crane-ui"
+version = "1.0.0"
 dependencies = [
  "crates_io_api",
  "dirs",
