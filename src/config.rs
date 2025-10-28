@@ -70,20 +70,20 @@ impl Config {
         target_crate.features = features.into_iter().collect();
         target_crate.crate_version = Some(crate_version);
 
-        self.save()
+        self.save();
     }
 
     pub fn update_pinned(&mut self, crate_name: String, pinned: bool) {
         let target_crate = self.crate_cache.entry(crate_name).or_default();
         target_crate.pinned = pinned;
 
-        self.save()
+        self.save();
     }
 
     pub fn update_locked(&mut self, crate_name: String, locked: bool) {
         let target_crate = self.crate_cache.entry(crate_name).or_default();
         target_crate.locked = locked;
 
-        self.save()
+        self.save();
     }
 }

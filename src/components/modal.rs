@@ -112,6 +112,7 @@ impl MainWindow {
         .into()
     }
 
+    #[must_use]
     pub fn update_modal(&self) -> Element<'_, Message> {
         let modal_length = self
             .lerp_state

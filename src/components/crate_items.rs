@@ -56,15 +56,15 @@ impl MainWindow {
                         let short_local = &local_hash[..local_hash.len().min(5)];
                         let short_latest = &latest_hash[..latest_hash.len().min(5)];
 
-                        if local_hash != latest_hash {
+                        if local_hash == latest_hash {
+                            version_text_string =
+                                format!("v{} ({})", crate_item.version, short_local);
+                            for_removal = true;
+                        } else {
                             version_text_string = format!(
                                 "v{} ({} → {})",
                                 crate_item.version, short_local, short_latest
                             );
-                        } else {
-                            version_text_string =
-                                format!("v{} ({})", crate_item.version, short_local);
-                            for_removal = true;
                         }
                     } else if let Some(local_hash) = &crate_item.local_hash
                         && crate_item.latest_hash.is_none()
@@ -127,9 +127,9 @@ impl MainWindow {
 
                 let mut pin_icon = pin();
                 if crate_item.pinned {
-                    pin_icon = pin_icon.color(Color::WHITE)
+                    pin_icon = pin_icon.color(Color::WHITE);
                 } else {
-                    pin_icon = pin_icon.color(Color::BLACK)
+                    pin_icon = pin_icon.color(Color::BLACK);
                 }
 
                 let pin_button = toggler_button_primary(pin_icon, crate_item.pinned)

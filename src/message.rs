@@ -83,11 +83,7 @@ impl MainWindow {
                     self.worker = Some(sender.clone());
                     let crate_names = self.crate_list.keys().cloned().collect();
 
-                    let rate_limit = self
-                        .config
-                        .as_ref()
-                        .map(|c| c.crate_rate_limit_ms)
-                        .unwrap_or(1000);
+                    let rate_limit = self.config.as_ref().map_or(1000, |c| c.crate_rate_limit_ms);
 
                     let mut git_crate_list = HashMap::new();
 
@@ -157,7 +153,7 @@ impl MainWindow {
                             description.clone(),
                             feature_list,
                             latest_version.to_string(),
-                        )
+                        );
                     }
 
                     target_crate.description = description;
