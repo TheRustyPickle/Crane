@@ -48,6 +48,8 @@ pub enum Message {
     TogglePin(String),
     ToggleLocked(String),
     GitInput(GitInputEvent),
+    CloseUpdateModal,
+    OpenUpdateLink,
     None,
 }
 
@@ -102,6 +104,8 @@ impl MainWindow {
                                 .await;
 
                             let _ = sender.send(WorkerInput::GetGitCommit(git_crate_list)).await;
+
+                            let _ = sender.send(WorkerInput::CheckLatestVersion).await;
                         },
                         |()| Message::None,
                     );
@@ -276,6 +280,10 @@ impl MainWindow {
 
                     target_crate.latest_hash = Some(commit);
                 }
+                WorkerEvent::NewUpdateAvailable(details) => {
+                    self.update_available = Some(details);
+                    self.update_lerp_states_update_modal();
+                }
             },
             Message::Hovering(index) => {
                 self.hovering = Some(index);
@@ -291,6 +299,7 @@ impl MainWindow {
                 self.lerp_state.lerp_all();
                 self.update_lerp_states_operation_container();
                 self.update_lerp_states_operation_progress();
+                self.update_lerp_states_update_modal();
             }
             Message::CancelOperation => {
                 self.delete_crates.clear();
@@ -463,6 +472,16 @@ impl MainWindow {
                 if let Some(config) = &mut self.config {
                     config.update_locked(crate_name, target_crate.locked);
                 }
+            }
+            Message::CloseUpdateModal => {
+                self.update_available = None;
+                self.update_lerp_states_update_modal();
+            }
+            Message::OpenUpdateLink => {
+                self.update_available = None;
+
+                let _ = open::that("https://github.com/TheRustyPickle/Crane/releases");
+                self.update_lerp_states_update_modal();
             }
         }
 

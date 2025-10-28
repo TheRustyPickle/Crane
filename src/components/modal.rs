@@ -1,5 +1,5 @@
 use iced::widget::text_input::Status;
-use iced::widget::{column, container, row, text, text_input};
+use iced::widget::{column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Border, Color, Element, Length, Theme};
 
 use crate::message::GitInputEvent;
@@ -8,6 +8,9 @@ use crate::{MainWindow, Message};
 
 pub const GIT_MODAL_WIDTH: f64 = 500.0;
 pub const GIT_MODAL_WIDTH_KEY: &str = "git_modal_width";
+
+pub const UPDATE_MODAL_LENGTH: f64 = 500.0;
+pub const UPDATE_MODAL_LENGTH_KEY: &str = "update_modal_length";
 
 impl MainWindow {
     #[must_use]
@@ -93,6 +96,69 @@ impl MainWindow {
         )
         .width(modal_width)
         .height(modal_width / 4)
+        .padding(10)
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(palette.background.weak.color.into()),
+                text_color: Some(palette.background.weak.text),
+                border: Border {
+                    radius: 8.into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        })
+        .into()
+    }
+
+    pub fn update_modal(&self) -> Element<'_, Message> {
+        let modal_length = self
+            .lerp_state
+            .get(UPDATE_MODAL_LENGTH_KEY)
+            .unwrap_or_default() as u32;
+
+        let update_text = if let Some(update) = &self.update_available {
+            text(update)
+        } else {
+            text("")
+        };
+
+        container(
+            column![
+                column![
+                    container(text("New Update Available").size(20))
+                        .align_x(Alignment::Center)
+                        .width(Length::Fill),
+                    scrollable(update_text.size(15))
+                        .height(Length::Fill)
+                        .width(Length::Fill),
+                    container(
+                        row![
+                            primary_button(
+                                text("Open in Browser")
+                                    .color(Color::WHITE)
+                                    .font(bold())
+                                    .align_x(Alignment::Center)
+                            )
+                            .on_press(Message::OpenUpdateLink)
+                            .width(Length::Fill),
+                            danger_button(text("Cancel").font(bold()).align_x(Alignment::Center))
+                                .on_press(Message::CloseUpdateModal)
+                                .width(Length::Fill),
+                        ]
+                        .spacing(5)
+                    )
+                    .width(Length::Fill)
+                    .align_x(Alignment::Center)
+                    .align_y(Alignment::End)
+                ]
+                .spacing(10)
+            ]
+            .spacing(20),
+        )
+        .width(modal_length)
+        .height(modal_length)
         .padding(10)
         .style(|theme: &Theme| {
             let palette = theme.extended_palette();

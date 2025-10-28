@@ -19,7 +19,10 @@ use std::fs::File;
 use std::io::Read as _;
 use std::time::Duration;
 
-use crate::components::{OPERATION_CONTAINER, OPERATION_CONTAINER_KEY, OPERATION_PROGRESS_KEY};
+use crate::components::{
+    FETCH_PROGRESS_HEIGHT_KEY, GIT_MODAL_WIDTH_KEY, OPERATION_CONTAINER, OPERATION_CONTAINER_KEY,
+    OPERATION_PROGRESS_KEY, UPDATE_MODAL_LENGTH, UPDATE_MODAL_LENGTH_KEY,
+};
 use crate::config::Config;
 use crate::lerp::LerpState;
 use crate::message::{GitInputEvent, GitInputState, Message};
@@ -54,6 +57,7 @@ pub struct MainWindow {
     logs: Vec<String>,
     git_input: GitInputState,
     config: Option<Config>,
+    update_available: Option<String>,
 }
 
 pub struct OperationCrate {
@@ -215,6 +219,7 @@ impl MainWindow {
             logs: Vec::new(),
             git_input: GitInputState::default(),
             config,
+            update_available: None,
         }
     }
 
@@ -233,28 +238,39 @@ impl MainWindow {
             }
         }
 
-        if self.fetch_progress.is_some() {
+        let container_height = self
+            .lerp_state
+            .get(FETCH_PROGRESS_HEIGHT_KEY)
+            .unwrap_or_default();
+
+        if self.fetch_progress.is_some() || container_height > 0.0 {
             to_render = to_render.push(self.fetch_progress());
-        } else {
-            let container_height = self.lerp_state.get("fetch_progress_height");
-
-            if container_height.unwrap_or(0.0) > 0.0 {
-                to_render = to_render.push(self.fetch_progress());
-            }
         }
+        let container_height = self
+            .lerp_state
+            .get(OPERATION_CONTAINER_KEY)
+            .unwrap_or_default();
 
-        let container_height = self.lerp_state.get("operation_container_height");
-
-        if container_height.unwrap_or(0.0) > 0.0 {
+        if container_height > 0.0 {
             to_render = to_render.push(self.operation_prompt());
         }
 
-        if self.git_input.show_modal {
+        let git_modal_height = self.lerp_state.get(GIT_MODAL_WIDTH_KEY).unwrap_or_default();
+        let update_modal_length = self
+            .lerp_state
+            .get(UPDATE_MODAL_LENGTH_KEY)
+            .unwrap_or_default();
+
+        if self.git_input.show_modal || git_modal_height > 0.0 {
             return modal(
                 to_render,
                 self.git_modal(),
                 Message::GitInput(GitInputEvent::HideModal),
             );
+        }
+
+        if self.update_available.is_some() || update_modal_length > 0.0 {
+            return modal(to_render, self.update_modal(), Message::CloseUpdateModal);
         }
 
         to_render.into()
@@ -277,6 +293,15 @@ impl MainWindow {
         } else {
             self.lerp_state
                 .lerp(OPERATION_CONTAINER_KEY, OPERATION_CONTAINER);
+        }
+    }
+
+    fn update_lerp_states_update_modal(&mut self) {
+        if self.update_available.is_some() {
+            self.lerp_state
+                .lerp(UPDATE_MODAL_LENGTH_KEY, UPDATE_MODAL_LENGTH);
+        } else {
+            self.lerp_state.lerp(UPDATE_MODAL_LENGTH_KEY, 0.0);
         }
     }
 

@@ -5,6 +5,7 @@ use iced::futures::join;
 use iced::task::{Never, Sipper, sipper};
 use log::{error, info};
 use reqwest::Client;
+use semver::Version;
 use serde::Deserialize;
 use sipper::Sender as SSender;
 use std::collections::HashMap;
@@ -17,6 +18,12 @@ use crate::LocalCrate;
 #[derive(Debug, Deserialize)]
 struct Commit {
     sha: String,
+}
+
+#[derive(Deserialize)]
+struct GithubRelease {
+    name: String,
+    body: String,
 }
 
 pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
@@ -185,6 +192,41 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                             }
                         }
                     }
+                    WorkerInput::CheckLatestVersion => {
+                        let Ok(current_version) = Version::parse(env!("CARGO_PKG_VERSION")) else {
+                            return;
+                        };
+
+                        let Ok(client) = Client::builder()
+                            .user_agent("Crane")
+                            .connect_timeout(Duration::from_secs(1))
+                            .timeout(Duration::from_secs(2))
+                            .build()
+                        else {
+                            return;
+                        };
+
+                        let Ok(response) = client
+                            .get("https://api.github.com/repos/TheRustyPickle/Crane/releases/latest")
+                            .send()
+                            .await
+                        else {
+                            return;
+                        };
+
+                        let Ok(json) = response.json::<GithubRelease>().await else {
+                            return;
+                        };
+
+                        let Ok(github_version) = Version::parse(&json.name.replace('v', "")) else {
+                            return;
+                        };
+
+                        if github_version > current_version {
+                            let updates = parse_github_body(&json.body);
+                            output.send(WorkerEvent::NewUpdateAvailable(updates)).await;
+                        }
+                    }
                 }
             });
         }
@@ -246,6 +288,15 @@ async fn run_command(item_name: &str, mut command: Command, mut output: SSender<
     }
 }
 
+#[must_use]
+pub fn parse_github_body(body: &str) -> String {
+    let body = body.replace("## Updates", "");
+    let body = body.replace('*', "•");
+    let body = body.replace('\r', "");
+    let end_point = body.find("## Changes").unwrap();
+    format!("\n{}\n", &body[..end_point].trim())
+}
+
 #[derive(Debug, Clone)]
 pub enum WorkerEvent {
     Ready(Sender<WorkerInput>),
@@ -259,6 +310,7 @@ pub enum WorkerEvent {
     DoneUpdate,
     DoneDelete,
     Log(String),
+    NewUpdateAvailable(String),
 }
 
 pub enum WorkerInput {
@@ -266,4 +318,5 @@ pub enum WorkerInput {
     GetGitCommit(HashMap<String, String>),
     UpdateCrates(Vec<LocalCrate>),
     DeleteCrates(Vec<String>),
+    CheckLatestVersion,
 }
