@@ -207,7 +207,9 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                         };
 
                         let Ok(response) = client
-                            .get("https://api.github.com/repos/TheRustyPickle/Crane/releases/latest")
+                            .get(
+                                "https://api.github.com/repos/TheRustyPickle/Crane/releases/latest",
+                            )
                             .send()
                             .await
                         else {
