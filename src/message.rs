@@ -95,8 +95,6 @@ impl MainWindow {
                         }
                     }
 
-                    info!("{:#?} {:#?}", crate_names, git_crate_list);
-
                     return Task::perform(
                         async move {
                             let _ = sender
@@ -460,13 +458,13 @@ impl MainWindow {
                 if target_crate.git_link.is_none() {
                     self.git_input.show_modal = true;
                     self.git_input.modal_text = String::new();
-                    self.git_input.crate_name = crate_name.clone();
+                    self.git_input.crate_name.clone_from(&crate_name);
 
                     if let Some(crate_response) = &target_crate.crate_response {
                         if let Some(repo) = &crate_response.crate_data.repository {
-                            self.git_input.modal_text = repo.to_string();
+                            self.git_input.modal_text = repo.clone();
                         } else if let Some(repo) = &crate_response.crate_data.homepage {
-                            self.git_input.modal_text = repo.to_string();
+                            self.git_input.modal_text = repo.clone();
                         }
                     }
 

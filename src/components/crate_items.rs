@@ -166,8 +166,8 @@ impl MainWindow {
                         let feature_button =
                             toggler_button(text(feature.clone()).size(10), feature_active)
                                 .on_press(Message::FeatureToggle {
-                                    crate_name: crate_item.name.to_string(),
-                                    feature_name: feature.to_string(),
+                                    crate_name: crate_item.name.clone(),
+                                    feature_name: feature.clone(),
                                 });
                         feature_list = feature_list.push(feature_button);
                     }
@@ -181,8 +181,8 @@ impl MainWindow {
 
                         let feature_button = toggler_button(text(feature).size(10), feature_active)
                             .on_press(Message::FeatureToggle {
-                                crate_name: crate_item.name.to_string(),
-                                feature_name: feature.to_string(),
+                                crate_name: crate_item.name.clone(),
+                                feature_name: feature.clone(),
                             });
                         feature_list = feature_list.push(feature_button);
                     }

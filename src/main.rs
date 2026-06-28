@@ -177,8 +177,8 @@ impl MainWindow {
                     crates_version = Some(version);
                 }
 
-                cached_features = crate_info.features.clone();
-                description = crate_info.description.clone();
+                cached_features.clone_from(&crate_info.features);
+                description.clone_from(&crate_info.description);
                 pinned = crate_info.pinned;
                 locked = crate_info.locked;
             }

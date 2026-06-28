@@ -121,7 +121,7 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                             let mut full_command = vec![
                                 String::from("cargo"),
                                 String::from("uninstall"),
-                                item.to_string(),
+                                item.clone(),
                             ];
 
                             output
