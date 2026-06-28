@@ -24,7 +24,7 @@ where
     Message: Clone + 'a,
 {
     button(content).style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
         let mut style = button::Style {
             border: Border {
                 radius: 8.into(),
@@ -51,7 +51,7 @@ where
     Message: Clone + 'a,
 {
     button(content).style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
 
         let mut style = button::Style {
             border: Border {
@@ -79,7 +79,7 @@ where
     Message: Clone + 'a,
 {
     button(content).style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
 
         let mut style = button::Style {
             border: Border {
@@ -90,9 +90,9 @@ where
         };
 
         style.background = Some(match status {
-            Status::Active => Color::parse("#FFCDD2").unwrap().into(),
-            Status::Hovered => Color::parse("#FFB3B8").unwrap().into(),
-            Status::Pressed => Color::parse("#FF999D").unwrap().into(),
+            Status::Active => "#FFCDD2".parse::<Color>().unwrap().into(),
+            Status::Hovered => "#FFB3B8".parse::<Color>().unwrap().into(),
+            Status::Pressed => "#FF999D".parse::<Color>().unwrap().into(),
             Status::Disabled => palette.background.strongest.color.into(),
         });
 
@@ -108,11 +108,11 @@ where
     Message: Clone + 'a,
 {
     button(content).style(move |theme: &Theme, status| {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
 
-        let success_base = Color::parse("#A5D6A7").unwrap();
-        let success_hover = Color::parse("#81C784").unwrap();
-        let success_strong = Color::parse("#66BB6A").unwrap();
+        let success_base = "#A5D6A7".parse::<Color>().unwrap();
+        let success_hover = "#81C784".parse::<Color>().unwrap();
+        let success_strong = "#66BB6A".parse::<Color>().unwrap();
 
         let mut style = button::Style {
             border: Border {
@@ -159,7 +159,7 @@ where
     Message: Clone + 'a,
 {
     button(content).style(move |theme: &Theme, status| {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
 
         let mut style = button::Style {
             border: Border {

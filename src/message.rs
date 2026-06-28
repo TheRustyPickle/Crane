@@ -111,8 +111,6 @@ impl MainWindow {
                     );
                 }
                 WorkerEvent::SuccessCrate(details) => {
-                    info!("Successfully fetched crate: {}", details.crate_data.name);
-
                     self.fetch_progress = Some(self.fetch_progress.unwrap_or(0) + 1);
 
                     let mut progress_status = 0.0;
