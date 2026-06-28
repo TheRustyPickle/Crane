@@ -58,7 +58,7 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                             match resp {
                                 Ok(details) => {
                                     output
-                                        .send(WorkerEvent::SuccessCrate((Box::new(details), index)))
+                                        .send(WorkerEvent::SuccessCrate(Box::new(details)))
                                         .await;
                                 }
                                 Err(e) => {
@@ -121,7 +121,7 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                             let mut full_command = vec![
                                 String::from("cargo"),
                                 String::from("uninstall"),
-                                item.to_string(),
+                                item.clone(),
                             ];
 
                             output
@@ -148,10 +148,12 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
 
                         output.send(WorkerEvent::DoneDelete).await;
                     }
-                    WorkerInput::GetGitCommit(repo_links) => {
+                    WorkerInput::GetGitCommit(repo_links, load_bar) => {
                         let client = Client::new();
 
                         for (crate_name, repo_link) in repo_links {
+                            info!("Fetching git commit: {crate_name} from {repo_link}");
+
                             let parts: Vec<&str> =
                                 repo_link.trim_end_matches('/').split('/').collect();
                             if parts.len() < 2 {
@@ -176,6 +178,7 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                                         response.json().await.unwrap_or_default();
 
                                     let Some(commit) = commits.first() else {
+                                        info!("No commits found for {crate_name}");
                                         continue;
                                     };
 
@@ -183,6 +186,7 @@ pub fn event_worker() -> impl Sipper<Never, WorkerEvent> {
                                         .send(WorkerEvent::SuccessGitCommit {
                                             crate_name,
                                             commit: commit.sha.clone(),
+                                            load_bar,
                                         })
                                         .await;
                                 }
@@ -303,8 +307,12 @@ pub fn parse_github_body(body: &str) -> String {
 pub enum WorkerEvent {
     Ready(Sender<WorkerInput>),
     ReadyFailed,
-    SuccessCrate((Box<CrateResponse>, usize)),
-    SuccessGitCommit { crate_name: String, commit: String },
+    SuccessCrate(Box<CrateResponse>),
+    SuccessGitCommit {
+        crate_name: String,
+        commit: String,
+        load_bar: bool,
+    },
     ErrorCrate(usize),
     Updating((String, usize)),
     Deleting((String, usize)),
@@ -317,7 +325,8 @@ pub enum WorkerEvent {
 
 pub enum WorkerInput {
     GetCrateVersion(Vec<String>, u64),
-    GetGitCommit(HashMap<String, String>),
+    // Whether the bool value should increase load bar on the ui
+    GetGitCommit(HashMap<String, String>, bool),
     UpdateCrates(Vec<LocalCrate>),
     DeleteCrates(Vec<String>),
     CheckLatestVersion,

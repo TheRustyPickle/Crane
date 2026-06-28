@@ -202,9 +202,11 @@ pub fn parse_git_link(link: &str) -> Option<(String, String)> {
     if link.starts_with("(git+") {
         let stripped_text = link.strip_prefix("(git+")?.strip_suffix(")")?;
 
-        stripped_text
-            .split_once('#')
-            .map(|(a, b)| (a.to_string(), b.to_string()))
+        stripped_text.split_once('#').map(|(git_link, hash)| {
+            let split_git_link = git_link.split_once('?').unwrap_or((git_link, ""));
+
+            (split_git_link.0.to_string(), hash.to_string())
+        })
     } else {
         None
     }
