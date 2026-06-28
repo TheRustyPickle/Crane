@@ -2,42 +2,41 @@
 name = "crane-ui"
 version = "1.0.0"
 edition = "2024"
-authors = ["TheRustyPickle <rusty.pickle94@gmail.com>"]
-readme = "README.md"
 description = """
 On-demand Telegram chat analytic generator
 """
+readme = "README.md"
 homepage = "https://github.com/TheRustyPickle/Crane"
 repository = "https://github.com/TheRustyPickle/Crane"
 license = "MIT"
 
 [[bin]]
+bench = false
 name = "crane"
 path = "src/main.rs"
 test = false
-bench = false
 
 [dependencies]
-dirs = "6.0.0"
-iced = { git = "https://github.com/iced-rs/iced", features = [
-    "tokio",
-    "sipper",
-], rev = "0b78f2aa5d0a741da79f3b2b0a91046c32587403" }
-log = "0.4.28"
-pretty_env_logger = "0.5.0"
-semver = "1.0.27"
-serde = "1.0.228"
-serde_json = "1.0.145"
-reqwest = "0.12.24"
-tokio = { version = "1.47.2", features = ["rt-multi-thread", "process"] }
 crates_io_api = { version = "0.12.0", default-features = false, features = [
-    "rustls",
+  "rustls",
 ] }
+dirs = "6.0.0"
+iced = { git = "https://github.com/iced-rs/iced", rev = "36b6ed0aec85fb01afbb63b4f48afa7763487967", features = [
+  "sipper",
+  "tokio",
+] }
+log = "0.4.28"
+open = "5.3.5"
+pretty_env_logger = "0.5.0"
+reqwest = { version = "0.13.4", features = ["json"] }
+semver = "1.0.28"
+serde = "1.0.228"
+serde_json = "1.0.150"
 sipper = "0.1.0"
-open = "5.3.2"
+tokio = { version = "1.52.3", features = ["process", "rt-multi-thread"] }
 
 [build-dependencies]
-iced_fontello = "0.13"
+iced_fontello = "0.14.1"
 
 # The profile that 'dist' will build with
 [profile.dist]

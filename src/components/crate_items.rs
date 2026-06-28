@@ -98,9 +98,9 @@ impl MainWindow {
 
                 let mut icon = if for_removal {
                     if self.delete_crates.contains_key(&crate_item.name) {
-                        tick().color(Color::parse("#F71735").unwrap())
+                        tick().color("#F71735".parse::<Color>().unwrap())
                     } else {
-                        trash().color(Color::parse("#F71735").unwrap())
+                        trash().color("#F71735".parse::<Color>().unwrap())
                     }
                 } else if self.update_crates.contains_key(&crate_item.name) {
                     tick().color(Color::WHITE)
@@ -188,12 +188,12 @@ impl MainWindow {
                     }
                 }
 
-                let feature_layout = scrollable(
-                    container(feature_list).width(Length::Fill).height(30),
-                )
-                .direction(scrollable::Direction::Horizontal(
-                    Scrollbar::new().width(5).scroller_width(5),
-                ));
+                let feature_layout =
+                    scrollable(container(feature_list).width(Length::Fill).height(30))
+                        .direction(scrollable::Direction::Horizontal(
+                            Scrollbar::new().width(5).scroller_width(5),
+                        ))
+                        .width(Length::Fill);
 
                 let git_tooltip_content = if let Some(git_link) = &crate_item.git_link {
                     text(git_link)
@@ -217,7 +217,7 @@ impl MainWindow {
                     Position::Top,
                 )
                 .style(|theme: &Theme| {
-                    let palette = theme.extended_palette();
+                    let palette = theme.palette();
                     container::Style {
                         background: Some(palette.background.weaker.color.into()),
                         text_color: Some(palette.background.weak.text),
@@ -242,7 +242,7 @@ impl MainWindow {
                     Position::Top,
                 )
                 .style(|theme: &Theme| {
-                    let palette = theme.extended_palette();
+                    let palette = theme.palette();
                     container::Style {
                         background: Some(palette.background.weaker.color.into()),
                         text_color: Some(palette.background.weak.text),
@@ -271,7 +271,7 @@ impl MainWindow {
 
                 let card = container(card_layout)
                     .style(move |theme: &Theme| {
-                        let palette = theme.extended_palette();
+                        let palette = theme.palette();
                         let mut background = palette.background.base.color;
 
                         if let Some(hover_index) = self.hovering
@@ -322,7 +322,7 @@ impl MainWindow {
                 column.push(mouse_area)
             })
             .padding(20)
-            .max_width(800.0);
+            .width(Length::Fit.max(800.0));
 
         container(
             scrollable(center(crate_cards))

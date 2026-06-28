@@ -30,7 +30,7 @@ impl MainWindow {
                         .on_submit(Message::GitInput(GitInputEvent::Submit))
                         .padding(5)
                         .style(|theme: &Theme, status| {
-                            let palette = theme.extended_palette();
+                            let palette = theme.palette();
 
                             let active = text_input::Style {
                                 background: (palette.background.base.color).into(),
@@ -98,7 +98,7 @@ impl MainWindow {
         .height(modal_width / 4)
         .padding(10)
         .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
+            let palette = theme.palette();
             container::Style {
                 background: Some(palette.background.weak.color.into()),
                 text_color: Some(palette.background.weak.text),
@@ -162,7 +162,7 @@ impl MainWindow {
         .height(modal_length)
         .padding(10)
         .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
+            let palette = theme.palette();
             container::Style {
                 background: Some(palette.background.weak.color.into()),
                 text_color: Some(palette.background.weak.text),

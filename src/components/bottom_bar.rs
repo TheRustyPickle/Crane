@@ -47,7 +47,7 @@ impl MainWindow {
         container(progress)
             .height(Length::Fixed(container_height))
             .style(|them: &Theme| {
-                let palette = them.extended_palette();
+                let palette = them.palette();
 
                 container::Style {
                     background: Some(palette.background.weak.color.into()),
@@ -149,7 +149,7 @@ impl MainWindow {
         container(layout)
             .height(Length::Fixed(container_height))
             .style(|theme: &Theme| {
-                let palette = theme.extended_palette();
+                let palette = theme.palette();
                 container::Style {
                     background: Some(palette.background.weak.color.into()),
                     ..Default::default()
