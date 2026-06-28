@@ -81,7 +81,7 @@ impl MainWindow {
             Message::FetchEvent(event) => match event {
                 WorkerEvent::Ready(mut sender) => {
                     self.worker = Some(sender.clone());
-                    let crate_names = self.crate_list.keys().cloned().collect();
+                    let mut crate_names = Vec::new();
 
                     let rate_limit = self.config.as_ref().map_or(1000, |c| c.crate_rate_limit_ms);
 
@@ -90,8 +90,12 @@ impl MainWindow {
                     for crate_details in self.crate_list.values() {
                         if let Some(git_url) = &crate_details.git_link {
                             git_crate_list.insert(crate_details.name.clone(), git_url.clone());
+                        } else {
+                            crate_names.push(crate_details.name.clone());
                         }
                     }
+
+                    info!("{:#?} {:#?}", crate_names, git_crate_list);
 
                     return Task::perform(
                         async move {
@@ -99,15 +103,19 @@ impl MainWindow {
                                 .send(WorkerInput::GetCrateVersion(crate_names, rate_limit))
                                 .await;
 
-                            let _ = sender.send(WorkerInput::GetGitCommit(git_crate_list)).await;
+                            let _ = sender
+                                .send(WorkerInput::GetGitCommit(git_crate_list, true))
+                                .await;
 
                             let _ = sender.send(WorkerInput::CheckLatestVersion).await;
                         },
                         |()| Message::None,
                     );
                 }
-                WorkerEvent::SuccessCrate((details, index)) => {
-                    self.fetch_progress = Some(index + 1);
+                WorkerEvent::SuccessCrate(details) => {
+                    info!("Successfully fetched crate: {}", details.crate_data.name);
+
+                    self.fetch_progress = Some(self.fetch_progress.unwrap_or(0) + 1);
 
                     let mut progress_status = 0.0;
                     let total_item = self.crate_list.len();
@@ -269,8 +277,29 @@ impl MainWindow {
                 WorkerEvent::ReadyFailed => {
                     error!("Failed to start client for fetching crates info");
                 }
-                WorkerEvent::SuccessGitCommit { crate_name, commit } => {
+                WorkerEvent::SuccessGitCommit {
+                    crate_name,
+                    commit,
+                    load_bar,
+                } => {
                     info!("Got commit hash {commit} for {crate_name}");
+
+                    if load_bar {
+                        self.fetch_progress = Some(self.fetch_progress.unwrap_or(0) + 1);
+
+                        let mut progress_status = 0.0;
+                        let total_item = self.crate_list.len();
+
+                        if let Some(progress) = self.fetch_progress {
+                            progress_status = (progress as f32 / total_item as f32) * 100.0;
+                        }
+
+                        self.lerp_state
+                            .lerp(FETCH_PROGRESS_KEY, f64::from(progress_status));
+
+                        self.lerp_state
+                            .lerp(FETCH_PROGRESS_HEIGHT_KEY, FETCH_PROGRESS_HEIGHT);
+                    }
 
                     let target_crate = self.crate_list.get_mut(&crate_name).unwrap();
 
@@ -414,7 +443,8 @@ impl MainWindow {
 
                         return Task::perform(
                             async move {
-                                let _ = worker.send(WorkerInput::GetGitCommit(to_send)).await;
+                                let _ =
+                                    worker.send(WorkerInput::GetGitCommit(to_send, false)).await;
                             },
                             |()| Message::None,
                         );
